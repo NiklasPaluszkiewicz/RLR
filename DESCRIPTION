@@ -1,0 +1,14 @@
+Package: UnSupervisedLearningwithR
+Type: Package
+Title: Unsupervised Machine Learning with R
+Version: 0.1.0
+Author: Martin Kies
+Maintainer: Martin Kies <martin.kies@uni-ulm.de>
+Depends:
+  StratTourn,
+  keras
+Description: Work in Progress: Q-Learning etc
+License: GPL-3
+Encoding: UTF-8
+LazyData: true
+RoxygenNote: 6.0.1
