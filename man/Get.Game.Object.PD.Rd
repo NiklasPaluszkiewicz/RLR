@@ -14,10 +14,14 @@ Get.Game.Object.PD(encoding.state = NULL, encoding.action = NULL)
 \item [2] Bit - See D (other)
 \item[3] Bit - See C (me)
 \item[4] Bit - See D (other)
-\item[5] Int - Round/100
-\item[6] Bit - is first round
-\item[7] Int - number of D of other per round
-\item[8] Int - number of D of me per round
+\item [5] Bit - See C (other) [one round before]
+\item [6] Bit - See D (other) [one round before]
+\item[7] Bit - See C (me) [one round before]
+\item[8] Bit - See D (other) [one round before]
+\item[9] Int - Round/100
+\item[10] Bit - is first round
+\item[11] Int - number of D of other per round
+\item[12] Int - number of D of me per round
 }
 }}
 

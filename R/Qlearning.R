@@ -140,8 +140,8 @@ Train.QLearning <- function(model, model.var, model.par, episodes, game.object){
 #'
 #' @export
 Get.Def.Par.QLearning <- function(){
-  hidden.nodes <- c(15,5)
-  activation.hidden <- c("relu","relu")
+  hidden.nodes <- c(25,15,5)
+  activation.hidden <- c("relu","relu","relu")
   activation.output <- c("linear")
   loss <- "mse"
   optimizer <- optimizer_adam(lr=0.05)

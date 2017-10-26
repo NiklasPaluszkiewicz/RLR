@@ -6,6 +6,7 @@
 #' Output is a list of the following structure:
 #' \itemize{
 #' \item input.nodes - Length of array as presented by state.2.array
+#' \item output.nodes - Number of possible actions
 #' }
 #' @param game.object A game object as defined by Get.Game.Object.Simple.Game
 #' @export
@@ -70,12 +71,16 @@ State.2.Array.PD <- function(game.state,game.object){
     #[2] Bit - See D (other)
     #[3] Bit - See C (me)
     #[4] Bit - See D (other)
-    #[5] Int - Round/100
-    #[6] Bit - is first round
-    #[7] Int - number of D of other per round
-    #[8] Int - number of D of me per round
+    #[5] Bit - See C (other) [one round before]
+    #[6] Bit - See D (other) [one round before]
+    #[7] Bit - See C (me) [one round before]
+    #[8] Bit - See D (other) [one round before]
+    #[9] Int - Round/100
+    #[10] Bit - is first round
+    #[11] Int - number of D of other per round
+    #[12] Int - number of D of me per round
 
-    arr <- vector("numeric",length=8)
+    arr <- vector("numeric",length=12)
 
     if(game.state$other.last.see == "C"){
       arr[1] <- TRUE
@@ -89,15 +94,27 @@ State.2.Array.PD <- function(game.state,game.object){
     if(game.state$me.last.see == "D"){
       arr[4] <- TRUE
     }
-    arr[5] <- game.state$round/100
-    if(game.state$round == 1){
+    if(game.state$round>2 && game.state$history.see[game.state$round-2,2] == "C"){
+      arr[5] <- TRUE
+    }
+    if(game.state$round>2 && game.state$history.see[game.state$round-2,2] == "D"){
       arr[6] <- TRUE
     }
-    if(game.state$round > 1){
-      arr[7] <- sum(game.state$history.see[1:(game.state$round-1),2]=="D")/game.state$round
+    if(game.state$round>2 && game.state$history.see[game.state$round-2,1] == "C"){
+      arr[7] <- TRUE
+    }
+    if(game.state$round>2 && game.state$history.see[game.state$round-2,1] == "D"){
+      arr[8] <- TRUE
+    }
+    arr[6] <- game.state$round/100
+    if(game.state$round == 1){
+      arr[7] <- TRUE
     }
     if(game.state$round > 1){
-      arr[8] <- sum(game.state$history.see[1:(game.state$round-1),1]=="D")/game.state$round
+      arr[8] <- sum(game.state$history.see[1:(game.state$round-1),2]=="D")/game.state$round
+    }
+    if(game.state$round > 1){
+      arr[9] <- sum(game.state$history.see[1:(game.state$round-1),1]=="D")/game.state$round
     }
     return(arr)
   } else {
@@ -256,10 +273,14 @@ Calculate.Game.Param.PD <- function(game.object){
 #' \item [2] Bit - See D (other)
 #' \item[3] Bit - See C (me)
 #' \item[4] Bit - See D (other)
-#' \item[5] Int - Round/100
-#' \item[6] Bit - is first round
-#' \item[7] Int - number of D of other per round
-#' \item[8] Int - number of D of me per round
+#' \item [5] Bit - See C (other) [one round before]
+#' \item [6] Bit - See D (other) [one round before]
+#' \item[7] Bit - See C (me) [one round before]
+#' \item[8] Bit - See D (other) [one round before]
+#' \item[9] Int - Round/100
+#' \item[10] Bit - is first round
+#' \item[11] Int - number of D of other per round
+#' \item[12] Int - number of D of me per round
 #' }
 #' }
 #' @param encoding.action Which method should be used to encode the action? Currently supported:
@@ -279,8 +300,11 @@ Get.Game.Object.PD <- function(encoding.state=NULL, encoding.action=NULL){
   return(game.object)
 }
 
+#' Standard Parameters of Repeated Prisoners Dilemma
+#' Returns a list with parameters.
+#' @export
 Get.Game.Param.PD <- function(){
-  other.strategy <- tit.for.tat
+  other.strategy <- strange.defector
   uCC <- 1
   uCD <- -1
   uDC <- 2
@@ -289,18 +313,18 @@ Get.Game.Param.PD <- function(){
   err.C.prob <- 0
   delta <- 0.9
   T <- NULL
-  T.max <- 20
+  T.max <- 200
   game.par <- nlist(other.strategy, uCC, uCD, uDC, uDD, err.D.prob, err.C.prob, delta, T, T.max)
   return(game.par)
 }
 
 #' The actual strategy after model has been trained
 #'
-#' Does not work for itself - the "model" variable has to be specified beforehand.
+#' Does not work for itself - the "strat.model" variable has to be specified beforehand.
 #' @export
 NN.strat = function(obs,i,t,history.see=NULL,...) {
   restore.point("NN.strat")
-  arr <- vector("numeric",length=8)
+  arr <- rep(0,12)
   j = 3-i
 
   if(is.null(history.see)){
@@ -323,15 +347,27 @@ NN.strat = function(obs,i,t,history.see=NULL,...) {
   if(obs$a[i] == "D" && t!=1){
     arr[4] <- TRUE
   }
-  arr[5] <- t/100
-  if(t == 1){
+  if(t>2 && history.see[t-2,2] == "C"){
+    arr[5] <- TRUE
+  }
+  if(t>2 && history.see[t-2,2] == "D"){
     arr[6] <- TRUE
   }
-  if(t > 1){
-    arr[7] <- sum(history.see[1:(t-1),2]=="D")/t
+  if(t>2 && history.see[t-2,1] == "C"){
+    arr[7] <- TRUE
+  }
+  if(t>2 && history.see[t-2,1] == "D"){
+    arr[8] <- TRUE
+  }
+  arr[9] <- t/100
+  if(t == 1){
+    arr[10] <- TRUE
   }
   if(t > 1){
-    arr[8] <- sum(history.see[1:(t-1),1]=="D")/t
+    arr[11] <- sum(history.see[1:(t-1),2]=="D")/t
+  }
+  if(t > 1){
+    arr[12] <- sum(history.see[1:(t-1),1]=="D")/t
   }
 
   act.values <- predict(strat.model,t(arr))

@@ -14,5 +14,6 @@ Public Function which might be called by algorithm functions.
 Output is a list of the following structure:
 \itemize{
 \item input.nodes - Length of array as presented by state.2.array
+\item output.nodes - Number of possible actions
 }
 }

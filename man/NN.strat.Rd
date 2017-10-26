@@ -7,5 +7,5 @@
 NN.strat(obs, i, t, history.see = NULL, ...)
 }
 \description{
-Does not work for itself - the "model" variable has to be specified beforehand.
+Does not work for itself - the "strat.model" variable has to be specified beforehand.
 }
