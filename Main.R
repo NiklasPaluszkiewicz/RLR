@@ -1,4 +1,4 @@
-library(UnSupervisedLearningwithR)
+library(ReinforcementLearningwithR)
 
 game.object <- Get.Game.Object.PD()
 model <- Setup.QLearning(game.object, model.par=NULL)

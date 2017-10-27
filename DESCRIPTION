@@ -1,7 +1,7 @@
-Package: UnSupervisedLearningwithR
+Package: ReinforcementLearningwithR
 Type: Package
-Title: Unsupervised Machine Learning with R
-Version: 0.1.0
+Title: Reinforcement Learning with R
+Version: 0.1.1
 Author: Martin Kies
 Maintainer: Martin Kies <martin.kies@uni-ulm.de>
 Depends:
