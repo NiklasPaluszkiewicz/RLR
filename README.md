@@ -1,10 +1,5 @@
-<<<<<<< HEAD
 # RLR
 Reinforcement Learning with R
-=======
-# USLR
-Unsupervised Learning with R
->>>>>>> origin/master
 
 This R package has the goal to bring some known - and newly developed - Machine Learning algorithms to R. 
 
