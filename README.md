@@ -25,3 +25,7 @@ Other list elements may be used by the game functions itself. The following item
   * encoding.action - a string or function specifing how the chosen action of the learning algorithm matches with the actual game action
   
  Note that structurally a game.object should never have information regarding any game.states.
+<<<<<<< HEAD
+=======
+
+>>>>>>> 13486534882d82249cbf47841b07dc4e88352a78
