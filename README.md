@@ -1,4 +1,5 @@
-# RLRReinforcement Learning with R
+# RLR
+Reinforcement Learning with R
 
 This R package has the goal to bring some known - and newly developed - Machine Learning algorithms to R. 
 
