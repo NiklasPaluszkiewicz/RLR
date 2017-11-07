@@ -2,13 +2,29 @@
 % Please edit documentation in R/Qlearning.R
 \name{Initialise.Qlearning}
 \alias{Initialise.Qlearning}
-\title{Set changeable model variables e.g. epsilon}
+\title{Set changeable model variables}
 \usage{
-Initialise.Qlearning(model.par)
+Initialise.Qlearning(game.object = NULL, model.par, memory.init = NULL,
+  memory.param = NULL)
 }
 \arguments{
-\item{model.par}{Parameters of QLearning specification.}
+\item{game.object}{A Game Object as defined by \code{Get.Game.Object.<Name>}. Necessary in the case of memory intitialisation.}
+
+\item{model.par}{Parameters of QLearning specification. Have to be specified and should be identical to the model.par as given to \code{Setup.Qlearning()}.}
+
+\item{memory.init}{Which type of initialization should take place? It \code{NULL}, the option \code{none} is used. The following types are supported \itemize{
+\item \strong{none} No initialization takes place. Memory is an empty list.
+\item \strong{self.play} The other strategies play against themselves - to understand possible secret handshakes. The following \code{memory.param} are expected: \itemize{
+\item \stron{no} How often should the other strategies play against themselves?
+}
+}
+If combinations of different memories are needed, one can use the function \code{Extend.Memory.Qlearning()}}
+
+\item{memory.param}{Parameters necessary for the chosen \code{memory.init}.}
 }
 \description{
-Set changeable model variables e.g. epsilon
+Returns a list with the following items \itemize{
+\item \strong{epsilon} Specifies how often the Algorithm tries a random move. Initialized with \code{epsilon.start} of \code{model.par}.
+\item \strong{memory} Memory of the Algorithm given past games. May be intitialised to give a starting point to learning.
+}
 }

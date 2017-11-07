@@ -25,10 +25,21 @@ Get.Par.PD <- function(game.object){
 #' Public function, which might be called by an algorithm.
 #' @export
 Generate.Start.State.PD <- function(game.object){
+  restore.point("Generate.Start.State.PD")
   t <- 1 # first round
   me.last.see <- "Default"
   other.last.see <- "Default"
   game.finished <- FALSE
+
+  #Define our strategy
+  strat.no <- sample(1:length(game.object$game.pars$other.strategies),1)
+  other.strategy <- game.object$game.pars$other.strategies[[strat.no]]
+
+  if(!is.null(names(game.object$game.pars$other.strategies[strat.no])) && names(game.object$game.pars$other.strategies[strat.no]) == "self"){
+    self.play = TRUE
+  } else {
+    self.play = FALSE
+  }
 
   # Draw number of periods from a negative binominal distribution if not defined
   if (is.null(game.object$game.pars$T)) {
@@ -42,12 +53,12 @@ Generate.Start.State.PD <- function(game.object){
   history.real <- data.frame(me=rep(NA,T), other=rep(NA,T))
 
   #Determine starting variables of other strategy
-  par.other.full <- formals(game.object$game.pars$other.strategy)
+  par.other.full <- formals(other.strategy)
   par.other <- par.other.full[!(names(par.other.full) %in% c("obs", "i", "t", "..."))]
 
   U = rep(0,2)
 
-  res <- nlist(round=t, me.last.see, other.last.see, game.finished, history.see, history.real, par.other, T=T)
+  res <- nlist(round=t, me.last.see, other.last.see, game.finished, history.see, history.real, other.strategy, par.other, T=T, self.play)
   return(res)
 }
 
@@ -148,6 +159,30 @@ Choice.2.Action.PD <- function(output.choice, game.object){
   }
 }
 
+#' Action to Array for Prisoners Dilemma
+#'
+#' Transforms the output of a game strategy to the number of choice of the machine learning algorithm \cr \cr
+#' Internal Function - There should be no need to call this function by an algorithm.
+#' @param output Chosen action.
+#' @param game.object as specified by Get.Game.Object
+Action.2.Choice.PD <- function(output, game.object){
+  if(is.null(game.object$encoding.action)){
+    encoding <- "main"
+  } else {
+    encoding <- game.object$encoding.action
+  }
+
+  if(encoding == "main"){
+    if(output=="C"){
+      return(1)
+    } else {
+      return(2)
+    }
+  } else {
+    stop("Wrong encoding specified.")
+  }
+}
+
 #' Get Info of Action Encoding
 #'
 #' Internal Function delivering info of action encoding, as e.g. number of nodes.
@@ -191,7 +226,7 @@ State.Transition.PD <- function(game.state, action, game.object){
   }
 
   args = c(list(obs = obs.other,i=2,t=game.state$round),game.state$par.other)
-  strat.res <- do.call(game.object$game.pars$other.strategy,args)
+  strat.res <- do.call(game.state$other.strategy,args)
   action.other <- strat.res$a
   par.other <- strat.res[-c(1)]
 
@@ -225,20 +260,37 @@ State.Transition.PD <- function(game.state, action, game.object){
 
   #Last round
   if(game.state$round>game.state$T){
-    reward <- sum(sapply((1:game.state$T),FUN=function(x){
-      if(game.state$history.real[x,1]=="C" && game.state$history.real[x,2]=="C"){
-        round.reward <- game.object$game.pars$uCC
-      } else if (game.state$history.real[x,1]=="C"&&game.state$history.real[x,2]=="D"){
-        round.reward <- game.object$game.pars$uCD
-      } else if (game.state$history.real[x,1]=="D"&&game.state$history.real[x,2]=="C"){
-        round.reward <- game.object$game.pars$uDC
-      } else if (game.state$history.real[x,1]=="D"&&game.state$history.real[x,2]=="D"){
-        round.reward <- game.object$game.pars$uDD
-      } else {
-        stop("something bad happened when calculating payoff")
-      }
-      return(round.reward)
-    }))/game.state$T
+    if(!game.state$self.play){
+      reward <- sum(sapply((1:game.state$T),FUN=function(x){
+        if(game.state$history.real[x,1]=="C" && game.state$history.real[x,2]=="C"){
+          round.reward <- game.object$game.pars$uCC
+        } else if (game.state$history.real[x,1]=="C"&&game.state$history.real[x,2]=="D"){
+          round.reward <- game.object$game.pars$uCD
+        } else if (game.state$history.real[x,1]=="D"&&game.state$history.real[x,2]=="C"){
+          round.reward <- game.object$game.pars$uDC
+        } else if (game.state$history.real[x,1]=="D"&&game.state$history.real[x,2]=="D"){
+          round.reward <- game.object$game.pars$uDD
+        } else {
+          stop("something bad happened when calculating payoff")
+        }
+        return(round.reward)
+      }))/game.state$T
+    } else {
+      reward <- sum(sapply((1:game.state$T),FUN=function(x){
+        if(game.state$history.real[x,1]=="C" && game.state$history.real[x,2]=="C"){
+          round.reward <- game.object$game.pars$uCC
+        } else if (game.state$history.real[x,1]=="C"&&game.state$history.real[x,2]=="D"){
+          round.reward <- (game.object$game.pars$uCD + game.object$game.pars$uDC)/2
+        } else if (game.state$history.real[x,1]=="D"&&game.state$history.real[x,2]=="C"){
+          round.reward <- (game.object$game.pars$uCD + game.object$game.pars$uDC)/2
+        } else if (game.state$history.real[x,1]=="D"&&game.state$history.real[x,2]=="D"){
+          round.reward <- game.object$game.pars$uDD
+        } else {
+          stop("something bad happened when calculating payoff")
+        }
+        return(round.reward)
+      }))/game.state$T
+    }
     game.finished <- TRUE
     game.state$game.finished <- TRUE
   }
@@ -246,23 +298,58 @@ State.Transition.PD <- function(game.state, action, game.object){
   return(nlist(next.state=game.state,reward,game.finished))
 }
 
-Calculate.Game.Param.PD <- function(game.object){
-  g.par <- game.object$game.given
+#' Generate Memory where strategies play against themselves
+#'
+#' Each strategy within the game.object plays against itself one time
+#'
+#' Outputs List of lists with the following elements:
+#' \itemize{
+#' \item state - Already encoded game state.
+#' \item action - Which of the actions has been taken?
+#' \item next.state - resulting next, encoded, state
+#' \item reward - What did we get from transitioning to the next state?
+#' \item done - Boolean; is the game over?
+#' }
+#' Public Function which might be called by algorithms.
+#' @param game.object as specified by Get.Game.Object
+#' @export
+Memory.Self.Play.PD <- function(game.object){
+  #generate Memory
+  strats <- game.object$game.pars$other.strategies
 
-  # Draw number of periods from a negative binominal distribution
-  if (is.null(g.par$game.par$T)) {
-    ret = sample.T(delta=g.par$game.par$delta, sample.delta=g.par$game.par$delta)
-    T = ret$T
-    if (!is.null(g.par$game.par$T.max))
-      T = pmin(T, g.par$game.par$T.max)
+  mem <- list()
+  for(strat.i in 1:length(game.object$game.pars$other.strategies)){
+    #ignore my own initialisation
+    if(names(game.object$game.pars$other.strategies)[strat.i] == "self"){
+      next
+    }
+    restore.point("inside.Memory.Self.Play.PD")
+    strat <- game.object$game.pars$other.strategies[strat.i]
+    strat.go <- game.object
+    strat.go$game.pars$other.strategies <- strat
+    state <- Generate.Start.State.PD(strat.go)
+    obs = c("C","C")
+    strat.pars <- NULL
+    for(counter in 1:state$T){
+      args <- c(list(obs=obs, i=1, t=state$round), strat.pars)
+      strat.ret <- do.call(strat.go$game.pars$other.strategies[[1]],args)
+      strat.action <- strat.ret$a
+      strat.pars <- strat.ret[-c("a" %in% names(strat.ret))]
+      strat.action <- Action.2.Choice.PD(output=strat.action, game.object)
+
+      next.state.full <- State.Transition.PD(game.state = state, action = strat.action, game.object=game.object)
+
+      next.state <- next.state.full$next.state
+      reward <- next.state.full$reward
+      done <- next.state.full$game.finished
+
+      mem[[length(mem)+1]] <- list(state=t(State.2.Array.PD(game.state=state, game.object=game.object)), action=strat.action, next.state=t(State.2.Array.PD(game.state=next.state, game.object=game.object)), reward=reward, done=done)
+      state <- next.state
+      obs <- list(a=c(next.state$me.last.see, next.state$other.last.see))
+
+    }
   }
-
-  #Here we deliberatedly choose that our Strategy is always in Slot 1!
-  si = get.strat.info(i=1, strat=g.par$game.par$other.strategy, game=g.par$game, game.states=game.states, human=FALSE)
-
-  strat.states = list()
-
-  return(nlist(T, game.states, obs, si, strat.states))
+  return(mem)
 }
 
 #' Get Game Object which fully defines Prisoners Dilemma.
@@ -289,14 +376,18 @@ Calculate.Game.Param.PD <- function(game.object){
 #' }
 #' @export
 Get.Game.Object.PD <- function(encoding.state=NULL, encoding.action=NULL){
-  game.pars <- Get.Game.Param.PD()
+  name <- "Prisoners Dilemma"
+  supports <- c("memory.self.play")
 
   game.par <- Get.Par.PD
   state.transition <- State.Transition.PD
   start.state <- Generate.Start.State.PD
   state.2.array <- State.2.Array.PD
+  memory.self.play <- Memory.Self.Play.PD
 
-  game.object <- nlist(game.pars, game.par, state.transition, start.state, state.2.array, encoding.state, encoding.action)
+  game.pars <- Get.Game.Param.PD()
+
+  game.object <- nlist(name, supports, game.pars, game.par, state.transition, start.state, state.2.array, encoding.state, encoding.action, memory.self.play)
   return(game.object)
 }
 
@@ -304,17 +395,18 @@ Get.Game.Object.PD <- function(encoding.state=NULL, encoding.action=NULL){
 #' Returns a list with parameters.
 #' @export
 Get.Game.Param.PD <- function(){
-  other.strategy <- strange.defector
+  other.strategies <- c(strat1)
+  names(other.strategies) <- c("strat1")
   uCC <- 1
   uCD <- -1
   uDC <- 2
   uDD <- 0
   err.D.prob <- 0
   err.C.prob <- 0
-  delta <- 0.9
+  delta <- 0.95
   T <- NULL
   T.max <- 200
-  game.par <- nlist(other.strategy, uCC, uCD, uDC, uDD, err.D.prob, err.C.prob, delta, T, T.max)
+  game.par <- nlist(other.strategies, uCC, uCD, uDC, uDD, err.D.prob, err.C.prob, delta, T, T.max)
   return(game.par)
 }
 
@@ -370,7 +462,7 @@ NN.strat = function(obs,i,t,history.see=NULL,...) {
     arr[12] <- sum(history.see[1:(t-1),1]=="D")/t
   }
 
-  act.values <- predict(strat.model,t(arr))
+  act.values <- predict(model,t(arr))
   choice <- which.max(act.values)
 
   if(choice==1){

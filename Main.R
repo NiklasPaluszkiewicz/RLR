@@ -3,13 +3,16 @@ library(ReinforcementLearningwithR)
 game.object <- Get.Game.Object.PD()
 model <- Setup.QLearning(game.object, model.par=NULL)
 model.par <- Get.Def.Par.QLearning()
-model.var <- Initialise.Qlearning(model.par)
+model.var <- Initialise.Qlearning(game.object, model.par, memory.init="self.play", memory.par=list(no=10))
 
-set.storing(TRUE)
+set.storing(FALSE)
 res <- Train.QLearning(model=model,model.var = model.var, model.par=model.par, game.object = game.object, episodes=2000)
 
-#Analyze Game
+#Save Memory & model
 model <- res$model
+model.var$memory <- res$model.var$memory
+
+#Analyze Game
 test.state1 <- Generate.Start.State.Simple.Game()
 
 prediction <- predict(model,t(game.object$state.2.array(game.state=test.state1, game.object)))

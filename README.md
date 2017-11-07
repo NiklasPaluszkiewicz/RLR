@@ -11,12 +11,18 @@ Every Game has to provide the following function:
 
 Get.Game.Object.<GameName>(<potential parameters>) which returns a list (called "game.object") which should have the following list elements:
 
+  * name - A String indicating the Name of the played game.
+  * supports - A Vector of strings with optional features (if applicable)
+    ** memory.self.play - One can extend the initialised memory of an algorithm with other strategies. In this case the memory.self.play has to be defined.
   * game.par - A function which recieves a game.object and returns a list with two elements
     -> input.nodes - Number of input informations after encoding the game state - in case of a Neural Network the Number of Perceptor Neurons
     -> output.nodes - Number of possible actions in this game.
   * state.transition - A function which receives the game.state, the action of the "player" and the game.object and returns a new game.state
   * start.state - A function which receives a game.object and returns the first game.state. The game.states cane have any structure as no algorithm should operate on game.states.
   * state.2.array - A function which receives a game.state and a game.object and returns a vector specified by an internal encoding function with all information necessary for the learning algorithm.
+  
+The following elements are optional and may not be supported by all games:
+  * memory.self.play - A function which generates memories - based on the encoding - given that strategies play against themselves. 
   
 Other list elements may be used by the game functions itself. The following items are recommended:
 

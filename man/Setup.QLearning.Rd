@@ -6,6 +6,11 @@
 \usage{
 Setup.QLearning(game.object, model.par = NULL)
 }
+\arguments{
+\item{game.object}{Game Object as defined by \code{Get.Game.Object.<NAME>}.}
+
+\item{model.par}{Model parameters. If \code{NULL}, the function \code{Get.Def.Par.QLearning()} is called.}
+}
 \description{
 Sets up a model based on model parameters
 }

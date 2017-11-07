@@ -1,6 +1,8 @@
 #Q-Learning with Discrete Choices
 #' Sets up a model based on model parameters
 #'
+#' @param game.object Game Object as defined by \code{Get.Game.Object.<NAME>}.
+#' @param model.par Model parameters. If \code{NULL}, the function \code{Get.Def.Par.QLearning()} is called.
 #' @export
 Setup.QLearning <- function(game.object, model.par=NULL){
   restore.point("Setup.QLearning")
@@ -36,14 +38,65 @@ Setup.QLearning <- function(game.object, model.par=NULL){
   return(model)
 }
 
-#' Set changeable model variables e.g. epsilon
+#' Set changeable model variables
 #'
-#' @param model.par Parameters of QLearning specification.
+#' Returns a list with the following items \itemize{
+#' \item \strong{epsilon} Specifies how often the Algorithm tries a random move. Initialized with \code{epsilon.start} of \code{model.par}.
+#' \item \strong{memory} Memory of the Algorithm given past games. May be intitialised to give a starting point to learning.
+#' }
+#'
+#' @param game.object A Game Object as defined by \code{Get.Game.Object.<Name>}. Necessary in the case of memory intitialisation.
+#' @param model.par Parameters of QLearning specification. Have to be specified and should be identical to the model.par as given to \code{Setup.Qlearning()}.
+#' @param memory.init Which type of initialization should take place? It \code{NULL}, the option \code{none} is used. The following types are supported \itemize{
+#' \item \strong{none} No initialization takes place. Memory is an empty list.
+#' \item \strong{self.play} The other strategies play against themselves - to understand possible secret handshakes. The following \code{memory.param} are expected: \itemize{
+#' \item \stron{no} How often should the other strategies play against themselves?
+#' }
+#' }
+#' If combinations of different memories are needed, one can use the function \code{Extend.Memory.Qlearning()}
+#' @param memory.param Parameters necessary for the chosen \code{memory.init}.
 #'@export
-Initialise.Qlearning <- function(model.par){
+Initialise.Qlearning <- function(game.object=NULL, model.par, memory.init=NULL, memory.param = NULL){
+  if(is.null(memory.init)){
+    memory.init <- "none"
+  }
+
   model.var <- list()
   model.var$epsilon <- model.par$epsilon.start
   model.var$memory <- list() #items: state, action, reward
+  if (memory.init != "none") {
+    model.var <- Extend.Memory.Qlearning(model.var, game.object=game.object, memory.type=memory.init, memory.param=memory.param)
+  }
+
+  return(model.var)
+}
+
+#' Extend Memory by specified experiences
+#'
+#' Returns modified model.var, where memory has been extended as specified.
+#'
+#' @param model.var A variable model object, where to be modified variables are saved. Given by \code{Initialise.Qlearning()}
+#' @param game.object A Game Object as defined by \code{Get.Game.Object.<Name>}.
+#' @param memory.init Which type of extension should take place? The following types are supported \itemize{
+#' \item \strong{self.play} The other strategies play against themselves - to understand possible secret handshakes. If I am myself part of the other strategies, the "self" strategy is ignored. The following \code{memory.param} are expected: \itemize{
+#' \item \strong{no} How often should the other strategies play against themselves?
+#' }
+#' }
+#' If combinations of different memories are needed, one can use the function multiple times.
+#' @param memory.param Parameters necessary for the chosen \code{memory.type}.
+#'@export
+Extend.Memory.Qlearning <- function(model.var, game.object, memory.type, memory.param=NULL){
+  restore.point("Extend.Memory.Qlearning")
+  if(memory.type == "self.play"){
+    new.mem <- unlist(lapply(1:memory.param$no,FUN=function(x){
+      if(!is.null(game.object$supports) && any(game.object$supports == "memory.self.play")){
+        return(game.object$memory.self.play(game.object))
+      }
+    }), recursive=FALSE)
+  } else {
+    stop(paste0("memory.type ",memory.type," not supported."))
+  }
+  model.var$memory <- c(model.var$memory,new.mem)
   return(model.var)
 }
 
@@ -140,20 +193,20 @@ Train.QLearning <- function(model, model.var, model.par, episodes, game.object){
 #'
 #' @export
 Get.Def.Par.QLearning <- function(){
-  hidden.nodes <- c(25,15,5)
-  activation.hidden <- c("relu","relu","relu")
+  hidden.nodes <- c(10,10)
+  activation.hidden <- c("relu","relu")
   activation.output <- c("linear")
   loss <- "mse"
   optimizer <- optimizer_adam(lr=0.05)
   epsilon.start <- 1
-  epsilon.decay <- 0.95
+  epsilon.decay <- 0.9
   epsilon.min <- 0.02
-  batch.size <- 1000
-  max.mem <- 1000000
-  gamma <- 0.99
+  batch.size <- 10000
+  max.mem <- 100000
+  gamma <- 1
   show.current.status <- 100
   replay.every <- 50
-  epochs <- 100
+  epochs <- 50
   q.param <- list(hidden.nodes=hidden.nodes,activation.hidden=activation.hidden,activation.output=activation.output,loss=loss,optimizer=optimizer,epsilon.start=epsilon.start,epsilon.decay=epsilon.decay,epsilon.min=epsilon.min,batch.size=batch.size,max.mem=max.mem, gamma=gamma, show.current.status=show.current.status, replay.every=replay.every, epochs=epochs)
   return(q.param)
 }
