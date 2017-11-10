@@ -4,13 +4,13 @@
 \alias{Extend.Memory.Qlearning}
 \title{Extend Memory by specified experiences}
 \usage{
-Extend.Memory.Qlearning(model.var, game.object, memory.type,
+Extend.Memory.Qlearning(algo.var, game.object, memory.type,
   memory.param = NULL)
 }
 \arguments{
-\item{model.var}{A variable model object, where to be modified variables are saved. Given by \code{Initialise.Qlearning()}}
+\item{algo.var}{A variable algorithm object, where to be modified variables are saved. Given by \code{Initialise.Qlearning()}}
 
-\item{game.object}{A Game Object as defined by \code{Get.Game.Object.<Name>}.}
+\item{game.object}{A game object as defined by \code{Get.Game.Object.<Name>}.}
 
 \item{memory.param}{Parameters necessary for the chosen \code{memory.type}.}
 
@@ -22,5 +22,5 @@ Extend.Memory.Qlearning(model.var, game.object, memory.type,
 If combinations of different memories are needed, one can use the function multiple times.}
 }
 \description{
-Returns modified model.var, where memory has been extended as specified.
+Returns modified algo.var, where memory has been extended as specified.
 }

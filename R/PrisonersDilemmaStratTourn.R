@@ -1,6 +1,26 @@
 #Play the Prisoners Dilemma of StratTourn
 
-#' Defines model parameters for 'Simple Game'
+#' Standard Parameters of Repeated Prisoners Dilemma
+#' Returns a list with parameters.
+#' @export
+Get.Game.Param.PD <- function(){
+  other.strategies <- c(strat1)
+  names(other.strategies) <- c("strat2")
+  uCC <- 1
+  uCD <- -1
+  uDC <- 2
+  uDD <- 0
+  err.D.prob <- 0
+  err.C.prob <- 0
+  delta <- 0.9
+  T <- 5
+  T.max <- 5
+  intermed <- 0
+  game.par <- nlist(other.strategies, uCC, uCD, uDC, uDD, err.D.prob, err.C.prob, delta, T, T.max, intermed)
+  return(game.par)
+}
+
+#' Defines model parameters for 'Prisoners Dilemma'
 #'
 #' Public Function which might be called by algorithm functions.
 #' Output is a list of the following structure:
@@ -47,6 +67,8 @@ Generate.Start.State.PD <- function(game.object){
     T = ret$T
     if (!is.null(game.object$game.pars$T.max))
       T = pmin(T, game.object$game.pars$T.max)
+  } else {
+    T = game.object$game.pars$T
   }
 
   history.see <- data.frame(me=rep(NA,T), other=rep(NA,T))
@@ -71,7 +93,7 @@ Generate.Start.State.PD <- function(game.object){
 #' @export
 State.2.Array.PD <- function(game.state,game.object){
   restore.point("State.2.Array.PD")
-  if(is.null(game.object$encoding)){
+  if(is.null(game.object$encoding.state)){
     encoding <- "main"
   } else {
     encoding <- game.object$encoding.state
@@ -81,7 +103,7 @@ State.2.Array.PD <- function(game.state,game.object){
     #[1] Bit - See C (other)
     #[2] Bit - See D (other)
     #[3] Bit - See C (me)
-    #[4] Bit - See D (other)
+    #[4] Bit - See D (me)
     #[5] Bit - See C (other) [one round before]
     #[6] Bit - See D (other) [one round before]
     #[7] Bit - See C (me) [one round before]
@@ -128,6 +150,21 @@ State.2.Array.PD <- function(game.state,game.object){
       arr[9] <- sum(game.state$history.see[1:(game.state$round-1),1]=="D")/game.state$round
     }
     return(arr)
+  } else if (encoding=="full.zero"){
+    me.C <- c((!is.na(game.state$history.see[,1])&game.state$history.see[,1]=="C"),rep(0,game.object$game.pars$T.max-nrow(game.state$history.see)))
+    me.D <- c((!is.na(game.state$history.see[,1])&game.state$history.see[,1]=="D"),rep(0,game.object$game.pars$T.max-nrow(game.state$history.see)))
+    other.C <- c((!is.na(game.state$history.see[,2])&game.state$history.see[,2]=="C"),rep(0,game.object$game.pars$T.max-nrow(game.state$history.see)))
+    other.D <- c((!is.na(game.state$history.see[,2])&game.state$history.see[,2]=="D"),rep(0,game.object$game.pars$T.max-nrow(game.state$history.see)))
+    arr <- c(me.C,me.D,other.C,other.D)
+    return(arr)
+  } else if (encoding=="full.compact"){
+    me.C <- c((!is.na(game.state$history.see[,1])&game.state$history.see[,1]=="C"),rep(0,game.object$game.pars$T.max-nrow(game.state$history.see)))
+    me.D <- c((!is.na(game.state$history.see[,1])&game.state$history.see[,1]=="D"),rep(0,game.object$game.pars$T.max-nrow(game.state$history.see)))
+    other.C <- c((!is.na(game.state$history.see[,2])&game.state$history.see[,2]=="C"),rep(0,game.object$game.pars$T.max-nrow(game.state$history.see)))
+    other.D <- c((!is.na(game.state$history.see[,2])&game.state$history.see[,2]=="D"),rep(0,game.object$game.pars$T.max-nrow(game.state$history.see)))
+    me <- me.C-me.D
+    other <- other.C-other.D
+    arr <- c(me,other)
   } else {
     stop("Wrong encoding specified.")
   }
@@ -215,6 +252,7 @@ Action.Encoding.Info.PD <- function(game.object){
 #' @param game.object as specified by Get.Game.Object
 #' @export
 State.Transition.PD <- function(game.state, action, game.object){
+  restore.point("State.Transition.PD")
   action.me <- Choice.2.Action.PD(action,game.object)
   reward <- 0
   game.finished <- FALSE
@@ -257,6 +295,22 @@ State.Transition.PD <- function(game.state, action, game.object){
   game.state$history.see[game.state$round-1,] <- c(mine.seen, other.seen)
   game.state$history.real[game.state$round-1,] <- c(a[1], a[2])
   game.state$par.other <- par.other
+
+  #Intermediate returns for faster convergence
+  if(game.object$game.pars$intermed>0){
+    rel.round <- game.state$round-1
+    if(game.state$history.see[rel.round,1]=="C" && game.state$history.see[rel.round,2]=="C"){
+        reward <- game.object$game.pars$uCC * game.object$game.pars$intermed
+      } else if (game.state$history.see[rel.round,1]=="C" && game.state$history.see[rel.round,2]=="D"){
+        reward <- game.object$game.pars$uCD * game.object$game.pars$intermed
+      } else if (game.state$history.see[rel.round,1]=="D" && game.state$history.see[rel.round,2]=="C"){
+        reward <- game.object$game.pars$uDC * game.object$game.pars$intermed
+      } else if (game.state$history.see[rel.round,1]=="D" && game.state$history.see[rel.round,2]=="D"){
+        reward <- game.object$game.pars$uDD * game.object$game.pars$intermed
+      } else {
+        stop("something bad happened when calculating payoff")
+      }
+  }
 
   #Last round
   if(game.state$round>game.state$T){
@@ -391,30 +445,11 @@ Get.Game.Object.PD <- function(encoding.state=NULL, encoding.action=NULL){
   return(game.object)
 }
 
-#' Standard Parameters of Repeated Prisoners Dilemma
-#' Returns a list with parameters.
-#' @export
-Get.Game.Param.PD <- function(){
-  other.strategies <- c(strat1)
-  names(other.strategies) <- c("strat1")
-  uCC <- 1
-  uCD <- -1
-  uDC <- 2
-  uDD <- 0
-  err.D.prob <- 0
-  err.C.prob <- 0
-  delta <- 0.95
-  T <- NULL
-  T.max <- 200
-  game.par <- nlist(other.strategies, uCC, uCD, uDC, uDD, err.D.prob, err.C.prob, delta, T, T.max)
-  return(game.par)
-}
-
 #' The actual strategy after model has been trained
 #'
 #' Does not work for itself - the "strat.model" variable has to be specified beforehand.
 #' @export
-NN.strat = function(obs,i,t,history.see=NULL,...) {
+NN.strat.main = function(obs,i,t,history.see=NULL,...) {
   restore.point("NN.strat")
   arr <- rep(0,12)
   j = 3-i
@@ -461,6 +496,40 @@ NN.strat = function(obs,i,t,history.see=NULL,...) {
   if(t > 1){
     arr[12] <- sum(history.see[1:(t-1),1]=="D")/t
   }
+
+  act.values <- predict(model,t(arr))
+  choice <- which.max(act.values)
+
+  if(choice==1){
+    a <- "C"
+  } else {
+    a <- "D"
+  }
+
+  return(list(a=a, history.see=history.see))
+}
+
+NN.strat.full.zero = function(obs,i,t,history.see=NULL,...) {
+  restore.point("NN.strat.zero")
+  j = 3-i
+
+  if(is.null(history.see)){
+    history.see <- data.frame(me=rep(0,200), other=rep(0,200))
+  }
+  if(t>1){
+    history.see[t-1,1] <- obs$a[i]
+    history.see[t-1,2] <- obs$a[j]
+  }
+  me.C <- rep(0,200)
+  me.C[history.see[,1]=="C"] <- 1
+  me.D <- rep(0,200)
+  me.D[history.see[,1]=="D"] <- 1
+  other.C <- rep(0,200)
+  other.C[history.see[,2]=="C"] <- 1
+  other.D <- rep(0,200)
+  other.D[history.see[,2]=="D"] <- 1
+
+  arr <- c(me.C,me.D,other.C,other.D)
 
   act.values <- predict(model,t(arr))
   choice <- which.max(act.values)

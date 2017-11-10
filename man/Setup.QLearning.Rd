@@ -4,7 +4,7 @@
 \alias{Setup.QLearning}
 \title{Sets up a model based on model parameters}
 \usage{
-Setup.QLearning(game.object, model.par = NULL)
+Setup.QLearning(game.object, algo.par = NULL, model.par)
 }
 \arguments{
 \item{game.object}{Game Object as defined by \code{Get.Game.Object.<NAME>}.}

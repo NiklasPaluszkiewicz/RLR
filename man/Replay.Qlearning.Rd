@@ -2,10 +2,10 @@
 % Please edit documentation in R/Qlearning.R
 \name{Replay.Qlearning}
 \alias{Replay.Qlearning}
-\title{Train NN of Q learning}
+\title{Train model of Q learning}
 \usage{
-Replay.Qlearning(model, model.var, model.par, batch.size)
+Replay.Qlearning(model, model.par, algo.par, algo.var)
 }
 \description{
-Train NN of Q learning
+Train model of Q learning
 }

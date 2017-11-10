@@ -4,13 +4,11 @@
 \alias{Initialise.Qlearning}
 \title{Set changeable model variables}
 \usage{
-Initialise.Qlearning(game.object = NULL, model.par, memory.init = NULL,
+Initialise.Qlearning(game.object = NULL, algo.par, memory.init = NULL,
   memory.param = NULL)
 }
 \arguments{
 \item{game.object}{A Game Object as defined by \code{Get.Game.Object.<Name>}. Necessary in the case of memory intitialisation.}
-
-\item{model.par}{Parameters of QLearning specification. Have to be specified and should be identical to the model.par as given to \code{Setup.Qlearning()}.}
 
 \item{memory.init}{Which type of initialization should take place? It \code{NULL}, the option \code{none} is used. The following types are supported \itemize{
 \item \strong{none} No initialization takes place. Memory is an empty list.
@@ -21,6 +19,8 @@ Initialise.Qlearning(game.object = NULL, model.par, memory.init = NULL,
 If combinations of different memories are needed, one can use the function \code{Extend.Memory.Qlearning()}}
 
 \item{memory.param}{Parameters necessary for the chosen \code{memory.init}.}
+
+\item{model.par}{Parameters of QLearning specification. Have to be specified and should be identical to the model.par as given to \code{Setup.Qlearning()}.}
 }
 \description{
 Returns a list with the following items \itemize{

@@ -2,7 +2,7 @@
 % Please edit documentation in R/PrisonersDilemmaStratTourn.R
 \name{Get.Par.PD}
 \alias{Get.Par.PD}
-\title{Defines model parameters for 'Simple Game'}
+\title{Defines model parameters for 'Prisoners Dilemma'}
 \usage{
 Get.Par.PD(game.object)
 }

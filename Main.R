@@ -1,16 +1,29 @@
 library(ReinforcementLearningwithR)
 
-game.object <- Get.Game.Object.PD()
-model <- Setup.QLearning(game.object, model.par=NULL)
-model.par <- Get.Def.Par.QLearning()
-model.var <- Initialise.Qlearning(game.object, model.par, memory.init="self.play", memory.par=list(no=10))
+game.object <- Get.Game.Object.PD(encoding.state = "full.compact")
+algo.par <- Get.Def.Par.QLearning()
+model.par <- Get.Def.Par.Neural.Network()
 
-set.storing(FALSE)
-res <- Train.QLearning(model=model,model.var = model.var, model.par=model.par, game.object = game.object, episodes=2000)
+model <- Setup.QLearning(game.object, algo.par=algo.par, model.par=model.par)
+
+algo.var <- Initialise.Qlearning(game.object, algo.par, memory.init="self.play", memory.par=list(no=1))
+
+set.storing(TRUE)
+res <- Train.QLearning(model=model, model.par=model.par, algo.par=algo.par, algo.var=algo.var, game.object = game.object, episodes=100)
 
 #Save Memory & model
 model <- res$model
-model.var$memory <- res$model.var$memory
+algo.var$memory <- res$algo.var$memory
+
+#Analyze
+model.par$predict(model,algo.var$memory[[length(algo.var$memory)-2]]$state)
+algo.var$memory[[length(algo.var$memory)-2]]$action
+model.par$predict(model,algo.var$memory[[length(algo.var$memory)-1]]$state)
+algo.var$memory[[length(algo.var$memory)-1]]$action
+model.par$predict(model,algo.var$memory[[length(algo.var$memory)]]$state)
+algo.var$memory[[length(algo.var$memory)]]$action
+
+model.par$predict(model,algo.var$memory[[1]]$state)
 
 #Analyze Game
 test.state1 <- Generate.Start.State.Simple.Game()

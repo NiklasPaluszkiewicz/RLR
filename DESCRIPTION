@@ -1,12 +1,14 @@
 Package: ReinforcementLearningwithR
 Type: Package
 Title: Reinforcement Learning with R
-Version: 0.1.1
+Version: 0.1.2
 Author: Martin Kies
 Maintainer: Martin Kies <martin.kies@uni-ulm.de>
 Depends:
   StratTourn,
-  keras
+  keras,
+  grf,
+  nnet
 Description: Work in Progress: Q-Learning etc
 License: GPL-3
 Encoding: UTF-8
