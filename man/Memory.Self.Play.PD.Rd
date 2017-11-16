@@ -4,10 +4,12 @@
 \alias{Memory.Self.Play.PD}
 \title{Generate Memory where strategies play against themselves}
 \usage{
-Memory.Self.Play.PD(game.object)
+Memory.Self.Play.PD(game.object, algo.par)
 }
 \arguments{
 \item{game.object}{as specified by Get.Game.Object}
+
+\item{algo.par}{as e.g. given by Get.Def.Par.QLearning}
 }
 \description{
 Each strategy within the game.object plays against itself one time

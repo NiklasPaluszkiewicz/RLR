@@ -3,16 +3,19 @@
 #' @export
 Get.Def.Par.QLearning <- function(){
   epsilon.start <- 1
-  epsilon.decay <- 0.9
-  epsilon.min <- 0.02
-  batch.size <- 10000
+  epsilon.decay <- 0.95
+  epsilon.min <- 0.05
+  batch.size <- 100000
   max.mem <- 100000
   remove.memory <- 0.1 #Fraction of Memory to randomly remove, if Memory is full
+  mem.type <- "game.encoded" #either "game.state" or "game.encoded"
+  mem.selection <- "all" #either "all" or "end.state" [end.state is useful if no interal rewards are expected]
   gamma <- 1
+  a <- 0.8
   show.current.status <- 10
-  replay.every <- 50
-  replay.intensive <- 10
-  q.param <- nlist(epsilon.start, epsilon.decay, epsilon.min, batch.size, max.mem, remove.memory, gamma, show.current.status, replay.every, replay.intensive)
+  replay.every <- 10
+  replay.intensive <- 1
+  q.param <- nlist(epsilon.start, epsilon.decay, epsilon.min, batch.size, max.mem, remove.memory, mem.type, mem.selection, gamma, a, show.current.status, replay.every, replay.intensive)
   return(q.param)
 }
 
@@ -66,7 +69,7 @@ Initialise.Qlearning <- function(game.object=NULL, algo.par, memory.init=NULL, m
   algo.var$epsilon <- algo.par$epsilon.start
   algo.var$memory <- list() #items: state, action, reward
   if (memory.init != "none") {
-    algo.var <- Extend.Memory.Qlearning(algo.var, game.object=game.object, memory.type=memory.init, memory.param=memory.param)
+    algo.var <- Extend.Memory.Qlearning(algo.var, algo.par=algo.par, game.object=game.object, memory.type=memory.init, memory.param=memory.param)
   }
 
   return(algo.var)
@@ -86,12 +89,12 @@ Initialise.Qlearning <- function(game.object=NULL, algo.par, memory.init=NULL, m
 #' If combinations of different memories are needed, one can use the function multiple times.
 #' @param memory.param Parameters necessary for the chosen \code{memory.type}.
 #'@export
-Extend.Memory.Qlearning <- function(algo.var, game.object, memory.type, memory.param=NULL){
+Extend.Memory.Qlearning <- function(algo.var, algo.par=NULL, game.object, memory.type, memory.param=NULL){
   restore.point("Extend.Memory.Qlearning")
   if(memory.type == "self.play"){
     new.mem <- unlist(lapply(1:memory.param$no,FUN=function(x){
       if(!is.null(game.object$supports) && any(game.object$supports == "memory.self.play")){
-        return(game.object$memory.self.play(game.object))
+        return(game.object$memory.self.play(game.object, algo.par))
       }
     }), recursive=FALSE)
   } else {
@@ -135,37 +138,21 @@ Replay.Qlearning <- function(model, model.par, algo.par, algo.var){
 
   for(i in 1:algo.par$replay.intensive){
     print(paste0(i,". round of replay(",algo.par$replay.intensive,")"))
-    y_train <- model.par$predict(model,x_next_state)
-    target <- reward + algo.par$gamma*apply(y_train, 1, FUN=max)
-    target[done] <- reward[done]
+    Q_sa_old <- model.par$predict(model,x_train)
+    Q_sa_next <- apply(model.par$predict(model,x_next_state), 1, FUN=max)
+    #Go through all given that action was taken
     y_train <- t(sapply(1:length(action),FUN=function(x){
-      res <- y_train[x,]
-      res[action[x]] <- target[x]
+      restore.point("y_train.intern")
+      res <- Q_sa_old[x,]
+      if(done[x]){
+        res[action[x]] <- reward[x]
+      } else {
+        res[action[x]] <- (1-algo.par$a)*Q_sa_old[x,action[x]] + algo.par$a * (reward[x] + algo.par$gamma*Q_sa_next[x]) #normal update "Q learning
+      }
       return(res)
     }))
     model <- model.par$train(model, model.par, x_train, y_train)
   }
-
-  # pred <- model.par$predict(model,x_train)
-  #
-  # traindata <- lapply(minibatch, FUN=function(x){
-  #   restore.point("inside.reaplay.qlearning")
-  #   target <- x$reward
-  #   if(!x$done){
-  #     pred <- model.par$predict(model,x$next.state)
-  #     target <- x$reward + algo.par$gamma*max(pred)
-  #   }
-  #   target_f <- model.par$predict(model,x$next.state)
-  #   target_f[x$action] <- target
-  #   return(list(x_train=x$state, y_train=target_f))
-  # })
-  # x_train <- t(sapply(1:length(traindata),FUN=function(x){
-  #   return(traindata[[x]]$x_train)
-  # }))
-  # y_train <- t(sapply(1:length(traindata),FUN=function(x){
-  #   return(traindata[[x]]$y_train)
-  # }))
-  # model <- model.par$train(model, model.par, x_train, y_train)
 
   if(algo.var$epsilon > algo.par$epsilon.min){
     algo.var$epsilon <- algo.par$epsilon.decay*algo.var$epsilon
@@ -207,7 +194,13 @@ Train.QLearning <- function(model, model.par, algo.par, algo.var, game.object, e
       reward <- next.state.full$reward
       done <- next.state.full$game.finished
 
-      algo.var$memory[[length(algo.var$memory)+1]] <- list(state=vis.state, action=action, next.state=t(game.object$state.2.array(game.state=next.state, game.object=game.object)), reward=reward, done=done)
+      if(algo.par$mem.selection=="all" || (algo.par$mem.selection=="end.state" && done)){
+        if(algo.par$mem.type=="game.encoded"){
+          algo.var$memory[[length(algo.var$memory)+1]] <- list(state=vis.state, action=action, next.state=t(game.object$state.2.array(game.state=next.state, game.object=game.object)), reward=reward, done=done)
+        } else if (algo.par$mem.type=="game.state"){
+          algo.var$memory[[length(algo.var$memory)+1]] <- list(state=state, action=action, next.state=next.state, reward=reward, done=done)
+        }
+      }
 
       if(done){
         break

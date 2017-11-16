@@ -4,7 +4,7 @@
 \alias{Extend.Memory.Qlearning}
 \title{Extend Memory by specified experiences}
 \usage{
-Extend.Memory.Qlearning(algo.var, game.object, memory.type,
+Extend.Memory.Qlearning(algo.var, algo.par = NULL, game.object, memory.type,
   memory.param = NULL)
 }
 \arguments{
