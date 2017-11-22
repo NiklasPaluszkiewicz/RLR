@@ -18,6 +18,10 @@ Extend.Memory.Qlearning(algo.var, algo.par = NULL, game.object, memory.type,
 \item \strong{self.play} The other strategies play against themselves - to understand possible secret handshakes. If I am myself part of the other strategies, the "self" strategy is ignored. The following \code{memory.param} are expected: \itemize{
 \item \strong{no} How often should the other strategies play against themselves?
 }
+\item \strong{solid.foundation} Not only self.play, but also a random initialisation with increasing defect probabilities.The following \code{memory.param} are expected: \itemize{
+\item \strong{self.no} How often should the other strategies play against themselves?
+\item \strong{rep.no} How often should a random strategy be played? The defection probability is linearly increased.
+}
 }
 If combinations of different memories are needed, one can use the function multiple times.}
 }

@@ -6,22 +6,29 @@ model.par <- Get.Def.Par.Neural.Network()
 
 model <- Setup.QLearning(game.object, algo.par=algo.par, model.par=model.par)
 
-algo.var <- Initialise.Qlearning(game.object, algo.par, memory.init="self.play", memory.par=list(no=20))
+algo.var <- Initialise.Qlearning(game.object, algo.par, memory.init="solid.foundation", memory.par=list(self.no=0,rep.no=5))
 
 set.storing(FALSE)
-res <- Train.QLearning(model=model, model.par=model.par, algo.par=algo.par, algo.var=algo.var, game.object = game.object, episodes=100)
+
+res <- Train.QLearning(model=model, model.par=model.par, algo.par=algo.par, algo.var=algo.var, game.object = game.object, episodes=50, eval.only=FALSE, start.w.training = TRUE)
 
 #Save Memory & model
 model <- res$model
 algo.var$memory <- res$algo.var$memory
+algo.var$analysis <- res$algo.var$analysis
+
+#Graphical Analysis
+plot(algo.var$analysis$score)
 
 #Analyze
-model.par$predict(model,algo.var$memory[[length(algo.var$memory)-19]]$state)
-algo.var$memory[[length(algo.var$memory)-2]]$action
-model.par$predict(model,algo.var$memory[[length(algo.var$memory)-1]]$state)
+model.par$predict(model,algo.var$memory[[length(algo.var$memory)-99]]$state)
+algo.var$memory[[length(algo.var$memory)-4]]$action
+model.par$predict(model,algo.var$memory[[length(algo.var$memory)-18]]$state)
 algo.var$memory[[length(algo.var$memory)-1]]$action
 model.par$predict(model,algo.var$memory[[length(algo.var$memory)]]$state)
 algo.var$memory[[length(algo.var$memory)]]$action
+
+
 
 model.par$predict(model,algo.var$memory[[1]]$state)
 

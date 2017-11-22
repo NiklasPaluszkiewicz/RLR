@@ -24,7 +24,7 @@ If combinations of different memories are needed, one can use the function \code
 }
 \description{
 Returns a list with the following items \itemize{
-\item \strong{epsilon} Specifies how often the Algorithm tries a random move. Initialized with \code{epsilon.start} of \code{model.par}.
+\item \strong{epsilon} [only in case of epsilon.greedy] Specifies how often the Algorithm tries a random move. Initialized with \code{epsilon.start} of \code{model.par}.
 \item \strong{memory} Memory of the Algorithm given past games. May be intitialised to give a starting point to learning.
 }
 }

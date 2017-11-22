@@ -11,7 +11,7 @@ Get.Def.Par.RFWager <- function(){
   train <- Train.RFWager
 
   #Parameters
-  mtry <- 2
+  mtry <- 3
   num.trees <- 1000
 
   model.def.par <- nlist(name,setup,predict,train,mtry, num.trees)
@@ -64,5 +64,6 @@ Train.RFWager <- function(model, model.par, x_train, y_train){
   y_train.RF <- do.call(rbind,y_train.RF.l)
 
   model <- regression_forest(x_train.RF, y_train.RF,mtry=model.par$mtry,num.trees=model.par$num.trees)
-  return(model)
+  fit.obj <- NA
+  return(nlist(model,fit.obj))
 }

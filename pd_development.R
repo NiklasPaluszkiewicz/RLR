@@ -44,7 +44,7 @@ game.1v1 = function() {
 
   # HIER die beiden Strategien eintragen die gegeneinander Spielen sollen
   # WICHTIG: Es m?ssen genau 2 Strategien eingetragen werden
-  strat = nlist(NN.strat,tit.for.tat)
+  strat = nlist(NN.strat.full.zero,strat2)
 
   run.rep.game(game=game, strat = strat)
 }
@@ -56,7 +56,7 @@ game.tournament = function() {
   library(StratTourn)
 
   # HIER die Spielparameter eintragen (Noise und Abbruchwahrscheinlichkeit)
-  game = make.pd.game(err.D.prob=0.0, delta=0.95)
+  game = make.pd.game(err.D.prob=0.0, delta=0.9)
 
   # HIER alle Strategien eintragen die gegeneinander Spielen sollen
   # WICHTIG: Es k?nnen mehr als 2 Strategien eingetragen werden
@@ -64,7 +64,7 @@ game.tournament = function() {
   #strat = nlist(always.coop, strat1, strat2, strat3, strat4, getrich, meineStrat2, phases, stratego)
   # last Tournament
    #strat = nlist(getrich, Alphabet3, stratego, meineStrat2, nashtag1, pudb.strat2, nottitfortat, prof.strat, schachmatt_tournament, phases, false.friend, Globaler.Tit.4.Tat, viva.PD.Strategy, screams.in.space)
-  strat=nlist(strat1, NN.strat)
+  strat=nlist(NN.strat.full.zero, strat2)
 
 
   tourn = init.tournament(game=game, strat=strat)

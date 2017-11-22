@@ -4,7 +4,8 @@
 \alias{Train.QLearning}
 \title{Train a model based on Q-Learning}
 \usage{
-Train.QLearning(model, model.par, algo.par, algo.var, game.object, episodes)
+Train.QLearning(model, model.par, algo.par, algo.var, game.object, episodes,
+  eval.only = FALSE, start.w.training = TRUE)
 }
 \description{
 Train a model based on Q-Learning

@@ -27,16 +27,18 @@ Get.Def.Par.Neural.Network <- function(){
   train <- Train.Neural.Network
 
   #Parameters
-  hidden.nodes <- c(100,50)
+  hidden.nodes <- c(10,10)
   activation.hidden <- c("relu","relu")
   activation.output <- c("linear")
   loss <- "mse"
   optimizer <- optimizer_adam(lr=0.001)
   epochs <- 100
-  batch.size.train <- 16
-  verbose <- 2
+  batch.size.train <- 4
+  verbose <- 0
+  enforce.increasing.precision <- TRUE
+  give.up.precision <- 100
 
-  model.def.par <- nlist(name,setup,predict,train,hidden.nodes,activation.hidden,activation.output,loss,optimizer,epochs, batch.size.train, verbose)
+  model.def.par <- nlist(name,setup,predict,train,hidden.nodes,activation.hidden,activation.output,loss,optimizer,epochs, batch.size.train, verbose, enforce.increasing.precision, give.up.precision)
 
   return(model.def.par)
 }
@@ -100,5 +102,5 @@ Train.Neural.Network <- function(model, model.par, x_train, y_train){
   fit.obj <- fit(model,x_train, y_train, epochs = model.par$epochs, verbose=model.par$verbose, batch_size = model.par$batch.size.train)
   print(fit.obj)
   print("")
-  return(model)
+  return(nlist(model,fit.obj))
 }

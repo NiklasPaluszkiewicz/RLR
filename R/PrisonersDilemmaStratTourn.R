@@ -4,7 +4,7 @@
 #' Returns a list with parameters.
 #' @export
 Get.Game.Param.PD <- function(){
-  other.strategies <- c(tit.for.tat)
+  other.strategies <- c(strat2)
   names(other.strategies) <- c("tit.for.tat")
   uCC <- 1
   uCD <- -1
@@ -13,8 +13,8 @@ Get.Game.Param.PD <- function(){
   err.D.prob <- 0
   err.C.prob <- 0
   delta <- 0.9
-  T <- 20
-  T.max <- 20
+  T <- 100
+  T.max <- 100
   intermed <- 0
   game.par <- nlist(other.strategies, uCC, uCD, uDC, uDD, err.D.prob, err.C.prob, delta, T, T.max, intermed)
   return(game.par)
@@ -546,6 +546,66 @@ Memory.Self.Play.PD <- function(game.object, algo.par){
   return(mem)
 }
 
+#' Generate Memory where strategies play against a random strategy
+#'
+#' Each strategy within the game.object plays against a random strategy of the given defection probability
+#'
+#' Outputs List of lists with the following elements:
+#' \itemize{
+#' \item state - Already encoded game state, if algo.par$mem.type=="game.encoded"
+#' \item action - Which of the actions has been taken?
+#' \item next.state - resulting next, encoded, state
+#' \item reward - What did we get from transitioning to the next state?
+#' \item done - Boolean; is the game over?
+#' }
+#' Public Function which might be called by algorithms.
+#' @param game.object as specified by Get.Game.Object
+#' @param algo.par as e.g. given by Get.Def.Par.QLearning
+#' @export
+Memory.Random.Play.PD <- function(game.object, algo.par){
+  #Generate Random Strategy
+  strat <- function(obs,i,t,...) {
+      a = sample( c("C","D"), size=1,  prob=c(1-algo.par$def.prob,algo.par$def.prob))
+      return(list(a=a))
+  }
+
+  mem <- list()
+  #ignore my own initialisation
+  restore.point("inside.Memory.Rand.Play.PD")
+  strat.go <- game.object
+  strat.go$game.pars$other.strategies <- c(strat)
+  state <- Generate.Start.State.PD(strat.go)
+  obs = c("C","C")
+  strat.pars <- NULL
+  for(counter in 1:state$T){
+    args <- c(list(obs=obs, i=1, t=state$round), strat.pars)
+    strat.ret <- do.call(strat.go$game.pars$other.strategies[[1]],args)
+    strat.action <- strat.ret$a
+    strat.pars <- strat.ret[-c("a" %in% names(strat.ret))]
+    strat.action <- Action.2.Choice.PD(output=strat.action, game.object)
+
+    next.state.full <- State.Transition.PD(game.state = state, action = strat.action, game.object=game.object)
+
+    next.state <- next.state.full$next.state
+    reward <- next.state.full$reward
+    done <- next.state.full$game.finished
+
+    if(algo.par$mem.selection=="all" || (algo.par$mem.selection=="end.state" && done)){
+      if(algo.par$mem.type=="game.encoded"){
+        mem[[length(mem)+1]] <- list(state=t(State.2.Array.PD(game.state=state, game.object=game.object)), action=strat.action, next.state=t(State.2.Array.PD(game.state=next.state, game.object=game.object)), reward=reward, done=done)
+       } else if (algo.par$mem.type=="game.state"){
+         mem[[length(mem)+1]] <- list(state=state, action=strat.action, next.state=next.state, reward=reward, done=done)
+       }
+     }
+
+    state <- next.state
+    obs <- list(a=c(next.state$me.last.see, next.state$other.last.see))
+
+  }
+
+  return(mem)
+}
+
 #' Get Game Object which fully defines Prisoners Dilemma.
 #' @param encoding.state Which method should be used to encode the game? Currently supported:
 #' \itemize{
@@ -571,17 +631,18 @@ Memory.Self.Play.PD <- function(game.object, algo.par){
 #' @export
 Get.Game.Object.PD <- function(encoding.state=NULL, encoding.action=NULL){
   name <- "Prisoners Dilemma"
-  supports <- c("memory.self.play")
+  supports <- c("memory.self.play", "memory.random.play")
 
   game.par <- Get.Par.PD
   state.transition <- State.Transition.PD
   start.state <- Generate.Start.State.PD
   state.2.array <- State.2.Array.PD
   memory.self.play <- Memory.Self.Play.PD
+  memory.random.play <- Memory.Random.Play.PD
 
   game.pars <- Get.Game.Param.PD()
 
-  game.object <- nlist(name, supports, game.pars, game.par, state.transition, start.state, state.2.array, encoding.state, encoding.action, memory.self.play)
+  game.object <- nlist(name, supports, game.pars, game.par, state.transition, start.state, state.2.array, encoding.state, encoding.action, memory.self.play, memory.random.play)
   return(game.object)
 }
 

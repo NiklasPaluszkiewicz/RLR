@@ -4,7 +4,8 @@
 \alias{Act.Qlearning}
 \title{Determines which action to take}
 \usage{
-Act.Qlearning(state, model, model.par, algo.var, game.object)
+Act.Qlearning(state, model, model.par, algo.var, game.object,
+  eval.only = FALSE)
 }
 \description{
 Determines which action to take
