@@ -4,7 +4,7 @@
 \alias{Replay.Qlearning}
 \title{Train model of Q learning}
 \usage{
-Replay.Qlearning(model, model.par, algo.par, algo.var)
+Replay.Qlearning(model, model.par, algo.par, algo.var, game.object)
 }
 \description{
 Train model of Q learning

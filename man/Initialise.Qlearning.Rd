@@ -13,7 +13,7 @@ Initialise.Qlearning(game.object = NULL, algo.par, memory.init = NULL,
 \item{memory.init}{Which type of initialization should take place? It \code{NULL}, the option \code{none} is used. The following types are supported \itemize{
 \item \strong{none} No initialization takes place. Memory is an empty list.
 \item \strong{self.play} The other strategies play against themselves - to understand possible secret handshakes. The following \code{memory.param} are expected: \itemize{
-\item \stron{no} How often should the other strategies play against themselves?
+\item \strong{no} How often should the other strategies play against themselves?
 }
 }
 If combinations of different memories are needed, one can use the function \code{Extend.Memory.Qlearning()}}

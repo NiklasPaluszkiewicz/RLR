@@ -7,5 +7,5 @@
 Action.Encoding.Info.PD(game.object)
 }
 \description{
-Internal Function delivering info of action encoding, as e.g. number of nodes.
+Returns Info of Action Encodings
 }

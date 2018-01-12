@@ -11,7 +11,7 @@ Setup.Neural.Network(model.par, game.par)
 
 \item{game.par}{Parameters of Game. Used are \itemize{
 \item input.nodes - Number of Input Nodes
-\item output.nodes - Number of Output Nodes.
+\item output.nodes - Number of Actions
 }}
 }
 \description{

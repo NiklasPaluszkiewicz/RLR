@@ -12,6 +12,5 @@ Choice.2.Action.PD(output.choice, game.object)
 \item{game.object}{as specified by Get.Game.Object}
 }
 \description{
-Transforms the output of an machine learning algorithm to a readable game state \cr \cr
-Internal Function - There should be no need to call this function by an algorithm.
+Transforms the output of an machine learning algorithm to a readable game state
 }

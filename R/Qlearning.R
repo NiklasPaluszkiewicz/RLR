@@ -4,7 +4,7 @@
 Get.Def.Par.QLearning <- function(){
 
   #How to choose Actions
-  action.policy  <- "naive.info.treatment" #may be "epsilon.greedy" or "naive.info.treatment
+  action.policy  <- "epsilon.greedy" #may be "epsilon.greedy" or "naive.info.treatment
 
   #Relevant parameters of epsilon.greedy
   epsilon.start <- 1
@@ -12,26 +12,29 @@ Get.Def.Par.QLearning <- function(){
   epsilon.min <- 0.05
 
   #Relevant parameters of naive.info.treatment
-  exploration.affinity <- 1000 #A Higher Value means states which are not very well understood are highlighted
+  exploration.affinity <- 100 #A Higher Value means states which are not very well understood are highlighted
   lin.falling <- TRUE
 
   #Memory
   batch.size <- 100000
-  max.mem <- 100000
+  max.mem <- Inf
   remove.memory <- 0.1 #Fraction of Memory to randomly remove, if Memory is full
   mem.type <- "game.encoded" #either "game.state" or "game.encoded"
-  mem.selection <- "all" #either "all" or "end.state" [end.state is useful if no interal rewards are expected]
+  mem.selection <- "all" #either "all" or "end.state" [end.state is useful if no interal rewards are expected or the game state contains complete path information]
 
   # Incorporating new information and Updating Status
   gamma <- 1
   a <- 0.8
   replay.every <- 1
   replay.intensive <- 1
+  speculate <- FALSE #Does not work currently!
+  qpathing <- TRUE
+  qpathing.quick <- TRUE
 
   # Output
   show.current.status <- 1
 
-  q.param <- nlist(action.policy, epsilon.start, epsilon.decay, epsilon.min, exploration.affinity, lin.falling, batch.size, max.mem, remove.memory, mem.type, mem.selection, gamma, a, show.current.status, replay.every, replay.intensive)
+  q.param <- nlist(action.policy, epsilon.start, epsilon.decay, epsilon.min, exploration.affinity, lin.falling, batch.size, max.mem, remove.memory, mem.type, mem.selection, gamma, a, show.current.status, replay.every, replay.intensive, speculate, qpathing, qpathing.quick)
 
   return(q.param)
 }
@@ -71,7 +74,7 @@ Setup.QLearning <- function(game.object, algo.par=NULL, model.par){
 #' @param memory.init Which type of initialization should take place? It \code{NULL}, the option \code{none} is used. The following types are supported \itemize{
 #' \item \strong{none} No initialization takes place. Memory is an empty list.
 #' \item \strong{self.play} The other strategies play against themselves - to understand possible secret handshakes. The following \code{memory.param} are expected: \itemize{
-#' \item \stron{no} How often should the other strategies play against themselves?
+#' \item \strong{no} How often should the other strategies play against themselves?
 #' }
 #' }
 #' If combinations of different memories are needed, one can use the function \code{Extend.Memory.Qlearning()}
@@ -143,53 +146,121 @@ Extend.Memory.Qlearning <- function(algo.var, algo.par=NULL, game.object, memory
 #' Train model of Q learning
 #'
 #' @export
-Replay.Qlearning <- function(model, model.par, algo.par, algo.var){
+Replay.Qlearning <- function(model, model.par, algo.par, algo.var, game.object){
   restore.point("Replay.Qlearning")
   if(length(algo.var$memory)<algo.par$batch.size){
     batch.size <- length(algo.var$memory)
   } else {
     batch.size <- algo.par$batch.size
   }
-  minibatch.no <- sample(1:length(algo.var$memory), batch.size)
+  if(algo.par$qpathing.quick){
+    minibatch <- algo.var$memory
+  } else {
+    minibatch.no <- sample(1:length(algo.var$memory), batch.size)
+    minibatch <- algo.var$memory[minibatch.no]
+  }
+  if(algo.par$mem.type!="game.state"&&algo.par$qpathing&&algo.par$max.mem!=Inf){
+    warning("QPathing only sensible with encoded states if non-end and memory Inf.")
+  }
 
-  minibatch <- algo.var$memory[minibatch.no]
-  #Transform dataset to trainable matrix
-  x_train <- t(sapply(minibatch, FUN=function(x){
-    return(x$state)
-  }))
-
-  x_next_state <- t(sapply(minibatch, FUN=function(x){
-    return(x$next.state)
-  }))
-
-  reward <- sapply(minibatch, FUN=function(x){
-    return(x$reward)
-  })
-
-  action <- sapply(minibatch, FUN=function(x){
-    return(x$action)
-  })
-
-  done <- sapply(minibatch, FUN=function(x){
-    return(x$done)
-  })
-
-  for(i in 1:algo.par$replay.intensive){
-    print(paste0(i,". round of replay(",algo.par$replay.intensive,")"))
-    Q_sa_old <- model.par$predict(model,x_train)
-    Q_sa_next <- apply(model.par$predict(model,x_next_state), 1, FUN=max)
-    #Go through all given that action was taken
-    y_train <- t(sapply(1:length(action),FUN=function(x){
-      restore.point("y_train.intern")
-      res <- Q_sa_old[x,]
-      if(done[x]){
-        res[action[x]] <- reward[x]
-      } else {
-        res[action[x]] <- (1-algo.par$a)*Q_sa_old[x,action[x]] + algo.par$a * (reward[x] + algo.par$gamma*Q_sa_next[x]) #normal update "Q learning
-      }
-      return(res)
+  if(algo.par$mem.type=="game.encoded"){
+    x_train <- t(sapply(minibatch, FUN=function(x){
+      return(x$state)
     }))
 
+    x_next_state <- t(sapply(minibatch, FUN=function(x){
+      return(x$next.state)
+    }))
+
+    reward <- sapply(minibatch, FUN=function(x){
+      return(x$reward)
+    })
+
+    action <- sapply(minibatch, FUN=function(x){
+      return(x$action)
+    })
+
+    done <- sapply(minibatch, FUN=function(x){
+      return(x$done)
+    })
+  } else {
+    my.list <- game.object$encode.game.states(game.object, minibatch, expand=TRUE)
+    x_train <- my.list$states
+    x_next_state <- my.list$next.states
+    reward <- my.list$reward
+    action <- my.list$action
+    done <- my.list$done
+  }
+
+  if(algo.par$qpathing){
+    to.check.x.next <- done
+    if(algo.par$qpathing.quick){
+      to.check.x.current <- rep(FALSE, length(done))
+      to.check.x.current[-length(to.check.x.current)] <- done[-1]
+    } else {
+      to.check.x.current <- !done
+    }
+    while(any(to.check.x.current)){
+      reward.tmp <- lapply((1:length(done))[to.check.x.current], FUN=function(x){
+        tmp.res <- sapply((1:length(done))[to.check.x.next], FUN=function(y){
+          identical(x_next_state[x,],x_train[y,])
+        })
+        if(!any(tmp.res)){
+          return(list(change=FALSE, reward=reward[x]))
+        } else {
+          reward.point <- reward[to.check.x.next][tmp.res]
+          return(list(change=TRUE, reward=max(reward.point))) #we play optimal after this (and feel very lucky)
+        }
+      })
+      #those who were true are the new end points
+      reward[to.check.x.current] <- sapply(reward.tmp,FUN=function(x){x$reward})
+
+      if(algo.par$qpathing.quick){
+        to.check.x.next <- to.check.x.current
+        if(!to.check.x.next[1]){#last round
+          to.check.x.current[-length(to.check.x.current)] <- to.check.x.next[-1]
+        } else {
+          to.check.x.current <- FALSE
+        }
+      } else {
+        poi <- sapply(reward.tmp,FUN=function(x){x$change})
+        to.check.x.next <- rep(FALSE,length(to.check.x.next))
+        to.check.x.next[to.check.x.current] <- poi
+        to.check.x.current[to.check.x.current][poi] <- FALSE
+      }
+    }
+    Q.val <- reward
+    n.actions <- game.object$game.par(game.object)$output.nodes
+    y_train <- t(sapply(1:length(action),FUN=function(x){
+      restore.point("y_train.intern")
+      res <- rep(NA,n.actions)
+      res[action[x]] <- reward[x]
+      return(res)
+    }))
+  } else { # normal Algo
+    for(i in 1:algo.par$replay.intensive){
+      print(paste0(i,". round of replay(",algo.par$replay.intensive,")"))
+       Q_sa_old <- model.par$predict(model,model.par, x_train)
+       Q_sa_next <- apply(model.par$predict(model,model.par, x_next_state), 1, FUN=max)
+       #Go through all given that action was taken
+       y_train <- t(sapply(1:length(action),FUN=function(x){
+         restore.point("y_train.intern")
+          res <- Q_sa_old[x,]
+          if(done[x]){
+           res[action[x]] <- reward[x]
+           if(!algo.par$speculate){
+             res[!(1:length(res) %in% (action[x]))] <- NA
+            }
+          } else {
+           res[action[x]] <- (1-algo.par$a)*Q_sa_old[x,action[x]] + algo.par$a * (reward[x] + algo.par$gamma*Q_sa_next[x]) #normal update "Q learning
+            if(!algo.par$speculate){
+              res[!(1:length(res) %in% (action[x]))] <- NA
+            }
+          }
+          return(res)
+        }))
+      }
+    }
     #Setup necessary precision
     if(!is.null(model.par$enforce.increasing.precision)&&model.par$enforce.increasing.precision==TRUE){
       prec.repeat <- TRUE
@@ -218,12 +289,14 @@ Replay.Qlearning <- function(model, model.par, algo.par, algo.var){
         }
       }
     }
-    algo.var$cur.loss <- mean(fit.obj$metrics$loss)
+    if(prec.repeat){
+      algo.var$cur.loss <- mean(fit.obj$metrics$loss)
+    }
 
     if(algo.par$action.policy=="naive.info.treatment" && i==algo.par$replay.intensive){
       #In last round, update Loss per Data point
-      predict.diff <- abs(model.par$predict(model,x_train) - y_train)
-      print(paste0("mean predict.diff in round ",i,": ",mean(predict.diff)))
+      predict.diff <- abs(model.par$predict(model,model.par,x_train) - y_train)
+      print(paste0("mean predict.diff in round ",i,": ",mean(predict.diff, na.rm=TRUE)))
       algo.var$memory <- lapply(1:length(algo.var$memory), FUN=function(x){
         if(x %in% minibatch.no){ #update
           adress <- which(minibatch.no %in% x)
@@ -235,7 +308,6 @@ Replay.Qlearning <- function(model, model.par, algo.par, algo.var){
           return(algo.var$memory[[x]])
         }
       })
-    }
   }
 
   if(algo.par$action.policy=="epsilon.greedy" && algo.var$epsilon > algo.par$epsilon.min){
@@ -279,7 +351,7 @@ Act.Qlearning <- function(state, model, model.par, algo.var, game.object, eval.o
   restore.point("Act.Qlearning")
 
   if(eval.only){
-    act.values <- model.par$predict(model,state)
+    act.values <- model.par$predict(model,model.par,state)
     return(which.is.max(act.values))
   }
 
@@ -288,7 +360,7 @@ Act.Qlearning <- function(state, model, model.par, algo.var, game.object, eval.o
       game.par <- game.object$game.par(game.object)
       return(sample(1:game.par$output.nodes,1))
     } else {
-      act.values <- model.par$predict(model,state)
+      act.values <- model.par$predict(model,model.par,state)
       return(which.is.max(act.values))
     }
   } else if(algo.par$action.policy=="naive.info.treatment"){
@@ -304,13 +376,13 @@ Act.Qlearning <- function(state, model, model.par, algo.var, game.object, eval.o
       return(NA)
     }))
     if(any(is.na(found.in.mem))){ #if we have no experience of some Qa pairs, do the best you can out of those
-      act.values <- model.par$predict(model,state)
+      act.values <- model.par$predict(model,model.par,state)
       out.of <- is.na(found.in.mem)
       act.values[!out.of] <- -Inf
       return(which.is.max(act.values))
     }
     #Build naive criterion
-    act.values <- model.par$predict(model,state)
+    act.values <- model.par$predict(model,model.par,state)
     info.values <- sapply(1:length(act.values),FUN=function(x){
       if(!is.null(algo.var$memory[[found.in.mem[x]]]$surprise) && !is.null(algo.var$memory[[found.in.mem[x]]]$visited)){
         res <- act.values[x] + algo.var$exploration.affinity * algo.var$memory[[found.in.mem[x]]]$surprise / sqrt(algo.var$memory[[found.in.mem[x]]]$visited)
@@ -329,6 +401,7 @@ Act.Qlearning <- function(state, model, model.par, algo.var, game.object, eval.o
 #'
 #' @export
 Train.QLearning <- function(model, model.par, algo.par, algo.var, game.object, episodes, eval.only=FALSE, start.w.training=TRUE){
+  restore.point("Train.Qlearning")
   score.array <- NA
   if(is.null(algo.var$analysis)){
     algo.var$analysis <- list()
@@ -336,7 +409,7 @@ Train.QLearning <- function(model, model.par, algo.par, algo.var, game.object, e
   }
 
   if(length(algo.var$memory)>0 && start.w.training && !eval.only){
-    replay.res <- Replay.Qlearning(model, model.par, algo.par, algo.var)
+    replay.res <- Replay.Qlearning(model, model.par, algo.par, algo.var, game.object)
     model <- replay.res$model
     algo.var <- replay.res$algo.var
   }
@@ -384,7 +457,7 @@ Train.QLearning <- function(model, model.par, algo.par, algo.var, game.object, e
     }
 
     if(i%%algo.par$replay.every == 0 && !eval.only){
-      replay.res <- Replay.Qlearning(model, model.par, algo.par, algo.var)
+      replay.res <- Replay.Qlearning(model, model.par, algo.par, algo.var, game.object)
       model <- replay.res$model
       algo.var <- replay.res$algo.var
     }

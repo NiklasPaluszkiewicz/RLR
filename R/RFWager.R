@@ -31,7 +31,7 @@ Setup.RFWager <- function(model.par, game.par){
 }
 
 #' @export
-Predict.RFWager <- function(model, state){
+Predict.RFWager <- function(model, model.par, state){
   restore.point("Predict.RFWager")
   no.action <- length(model$feature.indices) - ncol(state)
   states.l <- lapply(1:no.action,FUN=function(x){
@@ -62,6 +62,11 @@ Train.RFWager <- function(model, model.par, x_train, y_train){
     return(as.matrix(y_train[,x]))
   })
   y_train.RF <- do.call(rbind,y_train.RF.l)
+
+  #Remove NAs
+  na.vals <- is.na(y_train.RF)
+  x_train.RF <- x_train.RF[!na.vals,]
+  y_train.RF <- y_train.RF[!na.vals]
 
   model <- regression_forest(x_train.RF, y_train.RF,mtry=model.par$mtry,num.trees=model.par$num.trees)
   fit.obj <- NA

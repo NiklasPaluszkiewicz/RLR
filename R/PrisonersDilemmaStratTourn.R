@@ -4,8 +4,8 @@
 #' Returns a list with parameters.
 #' @export
 Get.Game.Param.PD <- function(){
-  other.strategies <- c(strat2)
-  names(other.strategies) <- c("tit.for.tat")
+  other.strategies <- c(strat1)
+  names(other.strategies) <- c("strat1")
   uCC <- 1
   uCD <- -1
   uDC <- 2
@@ -13,8 +13,8 @@ Get.Game.Param.PD <- function(){
   err.D.prob <- 0
   err.C.prob <- 0
   delta <- 0.9
-  T <- 100
-  T.max <- 100
+  T <- NULL
+  T.max <- 50
   intermed <- 0
   game.par <- nlist(other.strategies, uCC, uCD, uDC, uDD, err.D.prob, err.C.prob, delta, T, T.max, intermed)
   return(game.par)
@@ -139,15 +139,15 @@ State.2.Array.PD <- function(game.state,game.object){
     if(game.state$round>2 && game.state$history.see[game.state$round-2,1] == "D"){
       arr[8] <- TRUE
     }
-    arr[6] <- game.state$round/100
+    arr[9] <- game.state$round/100
     if(game.state$round == 1){
-      arr[7] <- TRUE
+      arr[10] <- TRUE
     }
     if(game.state$round > 1){
-      arr[8] <- sum(game.state$history.see[1:(game.state$round-1),2]=="D")/game.state$round
+      arr[11] <- sum(game.state$history.see[1:(game.state$round-1),2]=="D")/game.state$round
     }
     if(game.state$round > 1){
-      arr[9] <- sum(game.state$history.see[1:(game.state$round-1),1]=="D")/game.state$round
+      arr[12] <- sum(game.state$history.see[1:(game.state$round-1),1]=="D")/game.state$round
     }
     return(arr)
   } else if (encoding=="full.zero"){
@@ -259,7 +259,7 @@ State.2.Array.PD <- function(game.state,game.object){
       me.C.fin <- c(me.C.fin,rep(0,10-length(me.C.fin)))
     }
 
-    me.D.fin <- me.C[(game.state$round-1):max((game.state$round-10),1)]
+    me.D.fin <- me.D[(game.state$round-1):max((game.state$round-10),1)]
     if(length(me.D.fin)<=10){
       me.D.fin <- c(me.D.fin,rep(0,10-length(me.D.fin)))
     }
@@ -297,6 +297,120 @@ State.2.Array.PD <- function(game.state,game.object){
 
     arr <- c(me.C, me.D, other.C, other.D, me.C.fin, me.D.fin, other.C.fin, other.D.fin, round.cum, round.single, av.other.def, av.me.def, prev.val.as.seen,prev.val.as.seen.abs)
     return(arr)
+  } else if (encoding=="last.round"){
+    arr <- vector("numeric",length=4)
+
+    if(game.state$other.last.see == "C"){
+      arr[1] <- TRUE
+    }
+    if(game.state$other.last.see == "D"){
+      arr[2] <- TRUE
+    }
+    if(game.state$me.last.see == "C"){
+      arr[3] <- TRUE
+    }
+    if(game.state$me.last.see == "D"){
+      arr[4] <- TRUE
+    }
+    return(arr)
+  } else if (encoding=="Slim.TenTen"){
+    restore.point("Slim.Ten.encoding")
+    me.C <- c((!is.na(game.state$history.see[,1])&game.state$history.see[,1]=="C"),rep(0,game.object$game.pars$T.max-nrow(game.state$history.see)))
+    me.D <- c((!is.na(game.state$history.see[,1])&game.state$history.see[,1]=="D"),rep(0,game.object$game.pars$T.max-nrow(game.state$history.see)))
+    other.C <- c((!is.na(game.state$history.see[,2])&game.state$history.see[,2]=="C"),rep(0,game.object$game.pars$T.max-nrow(game.state$history.see)))
+    other.D <- c((!is.na(game.state$history.see[,2])&game.state$history.see[,2]=="D"),rep(0,game.object$game.pars$T.max-nrow(game.state$history.see)))
+
+    rounds.bin <- to.binary(game.state$round,max.dig=ceiling(log2(game.object$game.pars$T.max+1)))
+
+    if(game.state$round > 1){
+      av.other.def <- sum(game.state$history.see[1:(game.state$round-1),2]=="D")/game.state$round
+    } else {
+      av.other.def <- 0
+    }
+    if(game.state$round > 1){
+      av.me.def <- sum(game.state$history.see[1:(game.state$round-1),1]=="D")/game.state$round
+    } else {
+      av.me.def <- 0
+    }
+
+    if(game.state$round > 1){
+      diff <- sum(game.state$history.see[1:(game.state$round-1),1]=="D") - sum(game.state$history.see[1:(game.state$round-1),2]=="D")
+    } else {
+      diff <- 0
+    }
+    diff.bin <- to.binary(diff,max.dig=ceiling(log2(game.object$game.pars$T.max+1)))
+
+    me.C.fin <- me.C[(game.state$round-1):max((game.state$round-10),1)]
+    if(length(me.C.fin)<=10){
+      me.C.fin <- c(me.C.fin,rep(0,10-length(me.C.fin)))
+    }
+
+    me.D.fin <- me.D[(game.state$round-1):max((game.state$round-10),1)]
+    if(length(me.D.fin)<=10){
+      me.D.fin <- c(me.D.fin,rep(0,10-length(me.D.fin)))
+    }
+
+    other.C.fin <- other.C[(game.state$round-1):max((game.state$round-10),1)]
+    if(length(other.C.fin)<=10){
+      other.C.fin <- c(other.C.fin,rep(0,10-length(other.C.fin)))
+    }
+
+    other.D.fin <- other.D[(game.state$round-1):max((game.state$round-10),1)]
+    if(length(other.D.fin)<=10){
+      other.D.fin <- c(other.D.fin,rep(0,10-length(other.D.fin)))
+    }
+
+    if(game.state$round>=2){
+      prev.val.as.seen <- sum(sapply((1:(game.state$round-1)),FUN=function(x){
+        if(game.state$history.see[x,1]=="C" && game.state$history.see[x,2]=="C"){
+          round.reward <- game.object$game.pars$uCC
+        } else if (game.state$history.see[x,1]=="C"&&game.state$history.see[x,2]=="D"){
+          round.reward <- game.object$game.pars$uCD
+        } else if (game.state$history.see[x,1]=="D"&&game.state$history.see[x,2]=="C"){
+          round.reward <- game.object$game.pars$uDC
+        } else if (game.state$history.see[x,1]=="D"&&game.state$history.see[x,2]=="D"){
+          round.reward <- game.object$game.pars$uDD
+        } else {
+          stop("something bad happened when calculating payoff")
+        }
+        return(round.reward)
+      }))/(game.state$round-1)
+    } else {
+      prev.val.as.seen <- 1
+    }
+
+    prev.val.as.seen.abs <- prev.val.as.seen*(game.state$round-1)/game.object$game.pars$T.max
+
+    arr <- c(me.C-me.D, other.C-other.D, me.C.fin-me.D.fin, other.C.fin-other.D.fin, rounds.bin, av.other.def, av.me.def, prev.val.as.seen.abs, diff.bin)
+    return(arr)
+  } else if (encoding=="last.three.rounds"){
+    me.C <- c((!is.na(game.state$history.see[,1])&game.state$history.see[,1]=="C"),rep(0,game.object$game.pars$T.max-nrow(game.state$history.see)))
+    me.D <- c((!is.na(game.state$history.see[,1])&game.state$history.see[,1]=="D"),rep(0,game.object$game.pars$T.max-nrow(game.state$history.see)))
+    other.C <- c((!is.na(game.state$history.see[,2])&game.state$history.see[,2]=="C"),rep(0,game.object$game.pars$T.max-nrow(game.state$history.see)))
+    other.D <- c((!is.na(game.state$history.see[,2])&game.state$history.see[,2]=="D"),rep(0,game.object$game.pars$T.max-nrow(game.state$history.see)))
+
+    me.C.fin <- me.C[(game.state$round-1):max((game.state$round-3),1)]
+    if(length(me.C.fin)<=3){
+      me.C.fin <- c(me.C.fin,rep(0,3-length(me.C.fin)))
+    }
+
+    me.D.fin <- me.D[(game.state$round-1):max((game.state$round-3),1)]
+    if(length(me.D.fin)<=3){
+      me.D.fin <- c(me.D.fin,rep(0,3-length(me.D.fin)))
+    }
+
+    other.C.fin <- other.C[(game.state$round-1):max((game.state$round-3),1)]
+    if(length(other.C.fin)<=3){
+      other.C.fin <- c(other.C.fin,rep(0,3-length(other.C.fin)))
+    }
+
+    other.D.fin <- other.D[(game.state$round-1):max((game.state$round-3),1)]
+    if(length(other.D.fin)<=3){
+      other.D.fin <- c(other.D.fin,rep(0,3-length(other.D.fin)))
+    }
+
+    arr <- c(me.C.fin,me.D.fin, other.C.fin, other.D.fin)
+    return(arr)
   } else {
     stop("Wrong encoding specified.")
   }
@@ -304,10 +418,10 @@ State.2.Array.PD <- function(game.state,game.object){
 
 #' Array to Action for Prisoners Dilemma
 #'
-#' Transforms the output of an machine learning algorithm to a readable game state \cr \cr
-#' Internal Function - There should be no need to call this function by an algorithm.
+#' Transforms the output of an machine learning algorithm to a readable game state
 #' @param output.choice Number of chosen action.
 #' @param game.object as specified by Get.Game.Object
+#' @export
 Choice.2.Action.PD <- function(output.choice, game.object){
   if(is.null(game.object$encoding.action)){
     encoding <- "main"
@@ -330,10 +444,10 @@ Choice.2.Action.PD <- function(output.choice, game.object){
 
 #' Action to Array for Prisoners Dilemma
 #'
-#' Transforms the output of a game strategy to the number of choice of the machine learning algorithm \cr \cr
-#' Internal Function - There should be no need to call this function by an algorithm.
+#' Transforms the output of a game strategy to the number of choice of the machine learning algorithm
 #' @param output Chosen action.
 #' @param game.object as specified by Get.Game.Object
+#' @export
 Action.2.Choice.PD <- function(output, game.object){
   if(is.null(game.object$encoding.action)){
     encoding <- "main"
@@ -354,7 +468,8 @@ Action.2.Choice.PD <- function(output, game.object){
 
 #' Get Info of Action Encoding
 #'
-#' Internal Function delivering info of action encoding, as e.g. number of nodes.
+#' Returns Info of Action Encodings
+#' @export
 Action.Encoding.Info.PD <- function(game.object){
   if(is.null(game.object$encoding.action)){
     encoding <- "main"
@@ -507,6 +622,7 @@ Memory.Self.Play.PD <- function(game.object, algo.par){
   mem <- list()
   for(strat.i in 1:length(game.object$game.pars$other.strategies)){
     #ignore my own initialisation
+    restore.point("before.name")
     if(names(game.object$game.pars$other.strategies)[strat.i] == "self"){
       next
     }
@@ -515,7 +631,8 @@ Memory.Self.Play.PD <- function(game.object, algo.par){
     strat.go <- game.object
     strat.go$game.pars$other.strategies <- strat
     state <- Generate.Start.State.PD(strat.go)
-    obs = c("C","C")
+    obs <- list()
+    obs$a <- c("C","C")
     strat.pars <- NULL
     for(counter in 1:state$T){
       args <- c(list(obs=obs, i=1, t=state$round), strat.pars)
@@ -529,12 +646,17 @@ Memory.Self.Play.PD <- function(game.object, algo.par){
       next.state <- next.state.full$next.state
       reward <- next.state.full$reward
       done <- next.state.full$game.finished
+      if(state$round==1){
+        start <- TRUE
+      } else {
+        start <- FALSE
+      }
 
       if(algo.par$mem.selection=="all" || (algo.par$mem.selection=="end.state" && done)){
         if(algo.par$mem.type=="game.encoded"){
-          mem[[length(mem)+1]] <- list(state=t(State.2.Array.PD(game.state=state, game.object=game.object)), action=strat.action, next.state=t(State.2.Array.PD(game.state=next.state, game.object=game.object)), reward=reward, done=done)
+          mem[[length(mem)+1]] <- list(state=t(State.2.Array.PD(game.state=state, game.object=game.object)), action=strat.action, next.state=t(State.2.Array.PD(game.state=next.state, game.object=game.object)), reward=reward, done=done, start=start)
         } else if (algo.par$mem.type=="game.state"){
-          mem[[length(mem)+1]] <- list(state=state, action=strat.action, next.state=next.state, reward=reward, done=done)
+          mem[[length(mem)+1]] <- list(state=state, action=strat.action, next.state=next.state, reward=reward, done=done, start=start)
         }
       }
 
@@ -573,15 +695,11 @@ Memory.Random.Play.PD <- function(game.object, algo.par){
   #ignore my own initialisation
   restore.point("inside.Memory.Rand.Play.PD")
   strat.go <- game.object
-  strat.go$game.pars$other.strategies <- c(strat)
   state <- Generate.Start.State.PD(strat.go)
   obs = c("C","C")
-  strat.pars <- NULL
   for(counter in 1:state$T){
-    args <- c(list(obs=obs, i=1, t=state$round), strat.pars)
-    strat.ret <- do.call(strat.go$game.pars$other.strategies[[1]],args)
-    strat.action <- strat.ret$a
-    strat.pars <- strat.ret[-c("a" %in% names(strat.ret))]
+    restore.point("inside.Memory.Rand.Play.PD.for.loop")
+    strat.action = sample( c("C","D"), size=1,  prob=c(1-algo.par$def.prob,algo.par$def.prob))
     strat.action <- Action.2.Choice.PD(output=strat.action, game.object)
 
     next.state.full <- State.Transition.PD(game.state = state, action = strat.action, game.object=game.object)
@@ -590,11 +708,17 @@ Memory.Random.Play.PD <- function(game.object, algo.par){
     reward <- next.state.full$reward
     done <- next.state.full$game.finished
 
+    if(state$round==1){
+      start <- TRUE
+    } else {
+      start <- FALSE
+    }
+
     if(algo.par$mem.selection=="all" || (algo.par$mem.selection=="end.state" && done)){
       if(algo.par$mem.type=="game.encoded"){
-        mem[[length(mem)+1]] <- list(state=t(State.2.Array.PD(game.state=state, game.object=game.object)), action=strat.action, next.state=t(State.2.Array.PD(game.state=next.state, game.object=game.object)), reward=reward, done=done)
+        mem[[length(mem)+1]] <- list(state=t(State.2.Array.PD(game.state=state, game.object=game.object)), action=strat.action, next.state=t(State.2.Array.PD(game.state=next.state, game.object=game.object)), reward=reward, done=done, start=start)
        } else if (algo.par$mem.type=="game.state"){
-         mem[[length(mem)+1]] <- list(state=state, action=strat.action, next.state=next.state, reward=reward, done=done)
+         mem[[length(mem)+1]] <- list(state=state, action=strat.action, next.state=next.state, reward=reward, done=done, start=start)
        }
      }
 
@@ -604,6 +728,119 @@ Memory.Random.Play.PD <- function(game.object, algo.par){
   }
 
   return(mem)
+}
+
+#' Transforms List of Gamestates to std encoding form
+#'
+#' Returns list with states, next.states, action, reward, done
+#'
+#' @export
+Encode.Game.States.PD <- function(game.object, game.states, expand=TRUE){
+  if(!expand){
+    states <- t(sapply(game.states, FUN=function(x){
+      return(t(game.object$state.2.array(game.state=x$state, game.object=game.object)))
+    }))
+
+    next.states <- t(sapply(game.states, FUN=function(x){
+      return(t(game.object$state.2.array(game.state=x$next.state, game.object=game.object)))
+    }))
+
+    reward <- sapply(game.states, FUN=function(x){
+      return(x$reward)
+    })
+
+    action <- sapply(game.states, FUN=function(x){
+      return(x$action)
+    })
+
+    done <- sapply(game.states, FUN=function(x){
+      return(x$done)
+    })
+  } else {
+    #x_train
+    states <- lapply(game.states, FUN=function(x){
+      expand.x <- t(sapply(1:nrow(x$next.state$history.see),FUN=function(y){
+        fake.state <- x
+        fake.state$state$round <- y
+        if(y!=1){
+          fake.state$state$history.see[(y):nrow(fake.state$state$history.see),] <- NA
+          fake.state$state$me.last.see$chosen <- fake.state$next.state$history.see[y-1,1]
+          fake.state$state$other.last.see$chosen <- fake.state$next.state$history.see[y-1,2]
+        } else {
+          fake.state$state$history.see[(y):nrow(fake.state$state$history.see),] <- NA
+          fake.state$state$me.last.see$chosen <- "Default"
+          fake.state$state$other.last.see$chosen <- "Default"
+        }
+        return(t(game.object$state.2.array(game.state=fake.state$state, game.object=game.object)))
+      }))
+      return(expand.x)
+    })
+    states <- do.call(rbind, states)
+
+    #x_next
+    next.states <- lapply(game.states, FUN=function(x){
+      expand.x <- t(sapply(1:nrow(x$next.state$history.see),FUN=function(y){
+        fake.state <- x
+        if(x$next.state$round<=y+1){
+          #do nothing
+        } else {
+          fake.state$next.state$round <- y+1
+          fake.state$next.state$history.see[(y+1):nrow(fake.state$state$history.see),] <- NA
+          fake.state$next.state$me.last.see$chosen <- fake.state$next.state$history.see[y,1]
+          fake.state$next.state$other.last.see[[1]] <- fake.state$next.state$history.see[y,2]
+        }
+        return(t(game.object$state.2.array(game.state=fake.state$next.state, game.object=game.object)))
+      }))
+      return(expand.x)
+    })
+    next.states <- do.call(rbind, next.states)
+
+    #reward
+    reward <- lapply(game.states, FUN=function(x){
+      expand.reward <- t(sapply(1:nrow(x$next.state$history.see),FUN=function(y){
+        if(y==x$state$T){
+          return(x$reward)
+        } else {
+          return(0)
+        }
+        return(y$reward)
+      }))
+      return(expand.reward)
+    })
+    reward <- do.call(c, reward)
+
+    #action
+    action <- lapply(game.states, FUN=function(x){
+      expand.a <- t(sapply(1:nrow(x$next.state$history.see),FUN=function(y){
+        return(Action.2.Choice.PD(x$next.state$history.real[y,1], game.object))
+      }))
+      return(expand.a)
+    })
+    action <- do.call(c, action)
+
+    done <- lapply(game.states, FUN=function(x){
+      expand.d <- t(sapply(1:nrow(x$next.state$history.see),FUN=function(y){
+        if(y==x$state$T){
+          return(TRUE)
+        } else {
+          return(FALSE)
+        }
+      }))
+      return(expand.d)
+    })
+    done <- do.call(c, done)
+  }
+  return(nlist(states,next.states, reward, action, done))
+}
+
+#' @export
+Get.Full.Encoding.Status.PD <- function(encoding.state){
+  if(encoding.state %in% c("full.zero","full.compact","maximum.full.Ten","Slim.TenTen")){
+    res <- TRUE
+  } else {
+    res <- FALSE
+  }
+  return(res)
 }
 
 #' Get Game Object which fully defines Prisoners Dilemma.
@@ -639,10 +876,12 @@ Get.Game.Object.PD <- function(encoding.state=NULL, encoding.action=NULL){
   state.2.array <- State.2.Array.PD
   memory.self.play <- Memory.Self.Play.PD
   memory.random.play <- Memory.Random.Play.PD
+  encode.game.states <- Encode.Game.States.PD
+  full.encoding <- Get.Full.Encoding.Status.PD(encoding.state)
 
   game.pars <- Get.Game.Param.PD()
 
-  game.object <- nlist(name, supports, game.pars, game.par, state.transition, start.state, state.2.array, encoding.state, encoding.action, memory.self.play, memory.random.play)
+  game.object <- nlist(name, supports, game.pars, game.par, state.transition, start.state, state.2.array, encoding.state, encoding.action, memory.self.play, memory.random.play, encode.game.states, full.encoding)
   return(game.object)
 }
 

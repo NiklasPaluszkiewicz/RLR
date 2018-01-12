@@ -12,6 +12,5 @@ Action.2.Choice.PD(output, game.object)
 \item{game.object}{as specified by Get.Game.Object}
 }
 \description{
-Transforms the output of a game strategy to the number of choice of the machine learning algorithm \cr \cr
-Internal Function - There should be no need to call this function by an algorithm.
+Transforms the output of a game strategy to the number of choice of the machine learning algorithm
 }

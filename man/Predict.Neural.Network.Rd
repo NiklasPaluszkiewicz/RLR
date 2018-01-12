@@ -4,7 +4,7 @@
 \alias{Predict.Neural.Network}
 \title{Evaluate Neural Network}
 \usage{
-Predict.Neural.Network(model, state)
+Predict.Neural.Network(model, model.par, state)
 }
 \arguments{
 \item{model}{A trained Neural Network e.g. given by \code{Setup.Neural.Network}.}

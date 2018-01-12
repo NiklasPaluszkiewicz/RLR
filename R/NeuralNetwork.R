@@ -26,19 +26,22 @@ Get.Def.Par.Neural.Network <- function(){
   predict <- Predict.Neural.Network
   train <- Train.Neural.Network
 
-  #Parameters
-  hidden.nodes <- c(10,10)
+  #Struktural Parameters
+  hidden.nodes <- c(10,5)
   activation.hidden <- c("relu","relu")
   activation.output <- c("linear")
   loss <- "mse"
   optimizer <- optimizer_adam(lr=0.001)
-  epochs <- 100
-  batch.size.train <- 4
+  single.dimensional <- TRUE #Only one output neuron. Actions are part of Statespace
+
+  #Training parameters
+  epochs <- 50
+  batch.size.train <- 32
   verbose <- 0
   enforce.increasing.precision <- TRUE
-  give.up.precision <- 100
+  give.up.precision <- 10
 
-  model.def.par <- nlist(name,setup,predict,train,hidden.nodes,activation.hidden,activation.output,loss,optimizer,epochs, batch.size.train, verbose, enforce.increasing.precision, give.up.precision)
+  model.def.par <- nlist(name,setup,predict,train,hidden.nodes,activation.hidden,activation.output,loss,optimizer,epochs, batch.size.train, verbose, enforce.increasing.precision, give.up.precision, single.dimensional)
 
   return(model.def.par)
 }
@@ -49,16 +52,23 @@ Get.Def.Par.Neural.Network <- function(){
 #' @param model.par Parameters of Neural Network e.g. given by \code{Get.Def.Par.Neural.Network}
 #' @param game.par Parameters of Game. Used are \itemize{
 #' \item input.nodes - Number of Input Nodes
-#' \item output.nodes - Number of Output Nodes.
+#' \item output.nodes - Number of Actions
 #' }
 #' @export
 Setup.Neural.Network <- function(model.par, game.par){
   model <- keras_model_sequential()
+  if(model.par$single.dimensional){
+    input.nodes <- game.par$input.nodes + game.par$output.nodes
+    output.nodes <- 1
+  } else {
+    input.nodes <- game.par$input.nodes
+    output.nodes <- game.par$output.nodes
+  }
 
   for(i in 1:length(model.par$hidden.nodes)){
     if(i==1){
       model %>%
-        layer_dense(units = model.par$hidden.nodes[i], input_shape = game.par$input.nodes) %>%
+        layer_dense(units = model.par$hidden.nodes[i], input_shape = input.nodes) %>%
         layer_activation(activation = model.par$activation.hidden[i])
     } else {
       model %>%
@@ -68,7 +78,7 @@ Setup.Neural.Network <- function(model.par, game.par){
   }
 
   model %>%
-    layer_dense(units = game.par$output.nodes) %>%
+    layer_dense(units = output.nodes) %>%
     layer_activation(activation = model.par$activation.output)
 
   model %>% compile(
@@ -84,7 +94,7 @@ Setup.Neural.Network <- function(model.par, game.par){
 #' @param model A trained Neural Network e.g. given by \code{Setup.Neural.Network}.
 #' @param state A game.state after being encoded by the game.object.
 #' @export
-Predict.Neural.Network <- function(model, state){
+Predict.Neural.Network <- function(model, model.par, state){
   restore.point("Predict.Neural.Network")
   return(model %>% predict(state))
 }

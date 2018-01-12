@@ -1,53 +1,36 @@
 library(ReinforcementLearningwithR)
 
-game.object <- Get.Game.Object.PD(encoding.state = "maximum.full.Ten")
-algo.par <- Get.Def.Par.QLearning()
+game.object <- Get.Game.Object.PD(encoding.state = "TenTen")
+
+game.object$game.pars$T <- 50
+game.object$game.pars$T.max <- 50
+game.object$game.pars$other.strategies <- c(tit.for.tat)
+names(game.object$game.pars$other.strategies) <- c("tit.for.tat")
+
+algo.par <- Get.Def.Par.QPathing()
 model.par <- Get.Def.Par.Neural.Network()
 
-model <- Setup.QLearning(game.object, algo.par=algo.par, model.par=model.par)
+model <- Setup.QPathing(game.object, algo.par=algo.par, model.par=model.par)
 
-algo.var <- Initialise.Qlearning(game.object, algo.par, memory.init="solid.foundation", memory.par=list(self.no=0,rep.no=5))
+algo.var <- Initialise.QPathing(game.object, algo.par, memory.init="solid.foundation", memory.par=list(self.no=1,rep.no=5))
 
 set.storing(FALSE)
 
-res <- Train.QLearning(model=model, model.par=model.par, algo.par=algo.par, algo.var=algo.var, game.object = game.object, episodes=50, eval.only=FALSE, start.w.training = TRUE)
+algo.var$epsilon <- algo.par$epsilon.start
+res <- Train.QPathing(model=model, model.par=model.par, algo.par=algo.par, algo.var=algo.var, game.object = game.object, episodes=500, eval.only=FALSE, start.w.training = TRUE)
 
 #Save Memory & model
 model <- res$model
-algo.var$memory <- res$algo.var$memory
+algo.var$memory.net <- res$algo.var$memory.net
 algo.var$analysis <- res$algo.var$analysis
 
 #Graphical Analysis
+prec <- 10
+mov.av <- sapply(seq(floor((length(algo.var$analysis$score)/prec)),length(algo.var$analysis$score),by=floor((length(algo.var$analysis$score)/prec))), FUN=function(x){
+  sum(algo.var$analysis$score[(x-floor((length(algo.var$analysis$score)/prec))):x])/(floor((length(algo.var$analysis$score)/prec)))
+})
 plot(algo.var$analysis$score)
+lines(x=seq(floor((length(algo.var$analysis$score)/prec)),length(algo.var$analysis$score),by=floor((length(algo.var$analysis$score)/prec))), y=mov.av, lty="solid", col="red", type="l", lwd="3")
 
-#Analyze
-model.par$predict(model,algo.var$memory[[length(algo.var$memory)-99]]$state)
-algo.var$memory[[length(algo.var$memory)-4]]$action
-model.par$predict(model,algo.var$memory[[length(algo.var$memory)-18]]$state)
-algo.var$memory[[length(algo.var$memory)-1]]$action
-model.par$predict(model,algo.var$memory[[length(algo.var$memory)]]$state)
-algo.var$memory[[length(algo.var$memory)]]$action
+res.analysis <- Train.QPathing(model=model, model.par=model.par, algo.par=algo.par, algo.var=algo.var, game.object = game.object, episodes=10, eval.only=TRUE, start.w.training = TRUE)
 
-
-
-model.par$predict(model,algo.var$memory[[1]]$state)
-
-#Analyze Game
-test.state1 <- Generate.Start.State.Simple.Game()
-
-prediction <- predict(model,t(game.object$state.2.array(game.state=test.state1, game.object)))
-action <- which.max(prediction)
-
-test.state2 <- game.object$state.transition(game.state=test.state1,action=action,game.object=game.object)$next.state
-
-prediction <- predict(model,t(game.object$state.2.array(game.state=test.state2,game.object)))
-action <- which.max(prediction)
-
-test.state3 <- game.object$state.transition(game.state=test.state2,action=action,game.object=game.object)$next.state
-
-prediction <- predict(model,t(game.object$state.2.array(game.state=test.state3,game.object)))
-action <- which.max(prediction)
-
-test.state.final <- game.object$state.transition(game.state=test.state3,action=action,game.object=game.object)$next.state
-
-prediction <- predict(model,t(game.object$state.2.array(game.state=test.state.final,game.object)))
