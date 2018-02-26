@@ -1,13 +1,3 @@
-library(devtools)
-library(keras)
-library(tensorflow)
-#install_github("MartinKies/RLR")
-library(ReinforcementLearningwithR)
-#install.packages("future")
-library(future)
-library(parallel)
-
-
 Get.Def.Par.A3C <- function(){
 
    Return.Type <- "N.Steps"   #Either "GAE" or "N.Steps" are supported. "GAE" := General Advantage Estimation

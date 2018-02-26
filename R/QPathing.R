@@ -6,7 +6,7 @@ Get.Def.Par.QPathing <- function(){
   #How to choose Actions
   action.policy  <- "epsilon.greedy" #"epsilon.greedy"
   weighting.policy <- "mean.weighted"
-  weighting.factor <- 1000 #Overweight new information by factor
+  weighting.factor <- 10 #Overweight new information by factor
 
   #Relevant parameters of epsilon.greedy
   epsilon.start <- 0.1
@@ -16,11 +16,11 @@ Get.Def.Par.QPathing <- function(){
 
   # Incorporating new information and Updating Status
   mem.selection <- "all" #currently no other options are available - relevant for backwards compatibility
-  mem.type <- "game.encoded" #currently no other options are available - relevant for backwards compatibility
-  replay.every <- 50 # After How many rounds should the prediction model be updated?
+  mem.type <- "game.encoded.rounds" #game.encoded or game.encoded.rounds
+  replay.every <- 100 # After How many rounds should the prediction model be updated?
 
   # Output
-  show.current.status <- 5
+  show.current.status <- 50
 
   q.param <- nlist(action.policy,weighting.policy, weighting.factor, epsilon.start, epsilon.decay, epsilon.min, epsilon.decay.type,mem.selection, mem.type, show.current.status, replay.every)
 
@@ -88,6 +88,7 @@ Initialise.QPathing <- function(game.object=NULL, algo.par, memory.init=NULL, me
   algo.var <- list()
   algo.var$epsilon <- algo.par$epsilon.start
   algo.var$memory.net <- list()
+
   if (memory.init != "none") {
     algo.var <- Extend.Memory.QPathing(algo.var, algo.par=algo.par, game.object=game.object, memory.type=memory.init, memory.param=memory.param)
   }
@@ -223,12 +224,13 @@ Calc.Reward.QPathing <- function(net, pointer, action=NULL, mode, mode.par){
 #'
 #'@export
 Update.Net.QPathing <- function(net, new.mem, game.object, algo.par){
-  init.net.node <- function(state, precursors){
+  init.net.node <- function(state, precursors, round=1){
     visited <- 0
     expected.reward <- NA
     successors <-  rep( list(list()), game.object$game.par(game.object)$output.nodes)
     successors.visited <- rep( list(list()), game.object$game.par(game.object)$output.nodes)
-    return(nlist(state, visited, expected.reward, precursors, successors, successors.visited))
+    round <- round
+    return(nlist(state, visited, expected.reward, precursors, successors, successors.visited,round))
   }
   restore.point("Update.Net.QPathing")
   if(length(net)==0){ #initialise root
@@ -243,7 +245,7 @@ Update.Net.QPathing <- function(net, new.mem, game.object, algo.par){
   #Update net
   for(i in 1:no.paths){
   for(j in starts[i]:ends[i]){
-    #restore.point("within.for.update")
+    restore.point("within.for.update")
     x <- new.mem[[j]]
     if(j==starts[i]){
       net.pointer <- 1
@@ -253,13 +255,24 @@ Update.Net.QPathing <- function(net, new.mem, game.object, algo.par){
       if(game.object$full.encoding){ #Cycles are not possible
         no.next <- integer(0)
       } else {
-        no.next <- which(sapply(1:length(net),FUN=function(y){
-          identical(x$next.state,net[[y]]$state)
-        }))
+        if(algo.par$mem.type=="game.encoded.round"){
+          could.be.state <- which(sapply(1:length(net),FUN=function(y){
+            net[[y]]$round==(x$round+1)
+          }))
+        } else {
+          could.be.state <- 1:length(net)
+        }
+        if(length(could.be.state)==0){
+          no.next <- integer(0)
+        } else {
+          no.next <- which(sapply(could.be.state,FUN=function(y){
+            identical(x$next.state,net[[y]]$state)
+          }))
+        }
       }
       if(length(no.next)==0){
         no.next <- length(net)+1
-        net[[no.next]] <- init.net.node(state=x$next.state, precursors=net.pointer)
+        net[[no.next]] <- init.net.node(state=x$next.state, precursors=net.pointer, round=x$round+1)
       } else {
         net[[no.next]]$precursors[length(net[[no.next]]$precursors)+1] <- net.pointer
       }
@@ -277,13 +290,24 @@ Update.Net.QPathing <- function(net, new.mem, game.object, algo.par){
         if(game.object$full.encoding){ #Cycles are not possible
           no.next <- integer(0)
         } else {
-          no.next <- which(sapply(1:length(net),FUN=function(y){ #look again but this time through all known nodes
-            identical(x$next.state,net[[y]]$state)
-          }))
+          if(algo.par$mem.type=="game.encoded.round"){
+            could.be.state <- which(sapply(1:length(net),FUN=function(y){
+              net[[y]]$round==(x$round+1)
+            }))
+          } else {
+            could.be.state <- 1:length(net)
+          }
+          if(length(could.be.state)==0){
+            no.next <- integer(0)
+          } else {
+            no.next <- which(sapply(could.be.state,FUN=function(y){
+              identical(x$next.state,net[[y]]$state)
+            }))
+          }
         }
         if(length(no.next)==0){
           no.next <- length(net)+1
-          net[[no.next]] <- init.net.node(state=x$next.state, precursors=net.pointer)
+          net[[no.next]] <- init.net.node(state=x$next.state, precursors=net.pointer, round=x$round+1)
         } else {
           net[[no.next]]$precursors[length(net[[no.next]]$precursors)+1] <- net.pointer
         }
@@ -532,7 +556,7 @@ Train.QPathing <- function(model, model.par, algo.par, algo.var, game.object, ep
     start<-TRUE
     net.pointer <- 1
     while(TRUE){
-      #restore.point("within.Train.QPathing.II")
+      restore.point("within.Train.QPathing.II")
       vis.state <- t(game.object$state.2.array(game.state=state, game.object=game.object)) # not a real state but what the algorithm sees. Could be a lot smaller than the real game state [but might depend on encoding]
 
       action <- Act.QPathing(state=vis.state, model=model, model.par=model.par, algo.var=algo.var, game.object=game.object, eval.only=eval.only, net.pointer=net.pointer)
@@ -543,6 +567,7 @@ Train.QPathing <- function(model, model.par, algo.par, algo.var, game.object, ep
       reward <- next.state.full$reward
       done <- next.state.full$game.finished
       vis.next.state <- t(game.object$state.2.array(game.state=next.state, game.object=game.object))
+      round <- next.state.full$next.state$round-1
       #Update net.pointer
       if(is.null(net.pointer) || length(algo.var$memory.net[[net.pointer]]$successors[[action]])==0){
         net.pointer <- NULL
@@ -556,7 +581,7 @@ Train.QPathing <- function(model, model.par, algo.par, algo.var, game.object, ep
       }
 
 
-      mem[[length(mem)+1]] <- list(state=vis.state, action=action, next.state=vis.next.state, reward=reward, done=done, start=start)
+      mem[[length(mem)+1]] <- list(state=vis.state, action=action, next.state=vis.next.state, reward=reward, done=done, start=start, round=round)
 
 
       if(done){

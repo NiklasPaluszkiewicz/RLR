@@ -10,13 +10,14 @@ Get.Game.Param.PD <- function(){
   uCD <- -1
   uDC <- 2
   uDD <- 0
-  err.D.prob <- 0
-  err.C.prob <- 0
-  delta <- 0.9
+  err.D.prob <- 0.25
+  err.C.prob <- 0.25
+  delta <- 0.985
   T <- NULL
-  T.max <- 50
+  T.max <- 500
   intermed <- 0
-  game.par <- nlist(other.strategies, uCC, uCD, uDC, uDD, err.D.prob, err.C.prob, delta, T, T.max, intermed)
+  direct.rewards <- TRUE
+  game.par <- nlist(other.strategies, uCC, uCD, uDC, uDD, err.D.prob, err.C.prob, delta, T, T.max, intermed, direct.rewards)
   return(game.par)
 }
 
@@ -411,6 +412,51 @@ State.2.Array.PD <- function(game.state,game.object){
 
     arr <- c(me.C.fin,me.D.fin, other.C.fin, other.D.fin)
     return(arr)
+  } else if (encoding=="static.end.Ten"){
+    restore.point("static.end.Ten")
+
+    fin.count <- 10
+    start.count <- 20
+
+    me.C <- c((!is.na(game.state$history.see[,1])&game.state$history.see[,1]=="C"),rep(0,game.object$game.pars$T.max-nrow(game.state$history.see)))
+    me.D <- c((!is.na(game.state$history.see[,1])&game.state$history.see[,1]=="D"),rep(0,game.object$game.pars$T.max-nrow(game.state$history.see)))
+    other.C <- c((!is.na(game.state$history.see[,2])&game.state$history.see[,2]=="C"),rep(0,game.object$game.pars$T.max-nrow(game.state$history.see)))
+    other.D <- c((!is.na(game.state$history.see[,2])&game.state$history.see[,2]=="D"),rep(0,game.object$game.pars$T.max-nrow(game.state$history.see)))
+
+    me.C.start <- me.C[1:start.count]
+    me.D.start <- me.D[1:start.count]
+    other.C.start <- other.C[1:start.count]
+    other.D.start <- other.D[1:start.count]
+
+    end.round <- game.state$round>round(game.object$game.pars$T.max/2)
+    round <- game.state$round
+    if(end.round) round <- 0
+    rounds.bin <- to.binary(round,max.dig=ceiling(log2(game.object$game.pars$T.max)))
+
+    rounds.info <- c(end.round, rounds.bin)
+
+    me.C.fin <- me.C[(game.state$round-1):max((game.state$round-fin.count),1)]
+    if(length(me.C.fin)<=fin.count){
+      me.C.fin <- c(me.C.fin,rep(0,fin.count-length(me.C.fin)))
+    }
+
+    me.D.fin <- me.D[(game.state$round-1):max((game.state$round-fin.count),1)]
+    if(length(me.D.fin)<=fin.count){
+      me.D.fin <- c(me.D.fin,rep(0,fin.count-length(me.D.fin)))
+    }
+
+    other.C.fin <- other.C[(game.state$round-1):max((game.state$round-fin.count),1)]
+    if(length(other.C.fin)<=fin.count){
+      other.C.fin <- c(other.C.fin,rep(0,fin.count-length(other.C.fin)))
+    }
+
+    other.D.fin <- other.D[(game.state$round-1):max((game.state$round-fin.count),1)]
+    if(length(other.D.fin)<=fin.count){
+      other.D.fin <- c(other.D.fin,rep(0,fin.count-length(other.D.fin)))
+    }
+
+    arr <- c(me.C.start-me.D.start, other.C.start-other.D.start, me.C.fin-me.D.fin, other.C.fin-other.D.fin, rounds.info)
+    return(arr)
   } else {
     stop("Wrong encoding specified.")
   }
@@ -518,22 +564,31 @@ State.Transition.PD <- function(game.state, action, game.object){
   a <- c(action.me, action.other)
 
   rand = runif(1)
-  if(a[1]=="D" && rand<game.object$game.pars$err.D.prob){
-    mine.seen <- "C"
-  } else if (a[1]=="C" && rand<game.object$game.pars$err.C.prob){
-    mine.seen <- "D"
-  } else { #correct
-    mine.seen <- a[1]
+  if(a[1]=="D"){
+    err.D.1 = FALSE
+    err.C.1 = rand<game.object$game.pars$err.C.prob
+  } else {
+    err.D.1 = rand<game.object$game.pars$err.D.prob
+    err.C.1 = FALSE
   }
 
   rand = runif(1)
-  if(a[2]=="D" && rand<game.object$game.pars$err.D.prob){
-    other.seen <- "C"
-  } else if (a[2]=="C" && rand<game.object$game.pars$err.C.prob){
-    other.seen <- "D"
-  } else { #correct
-    other.seen <- a[2]
+  if(a[2]=="D"){
+    err.D.2 = FALSE
+    err.C.2 = rand<game.object$game.pars$err.C.prob
+  } else {
+    err.D.2 = rand<game.object$game.pars$err.D.prob
+    err.C.2 = FALSE
   }
+
+  mine.seen <- a[[1]]
+  other.seen <- a[[2]]
+
+  if (err.D.1) mine.seen = "D"
+  if (err.C.1) mine.seen = "C"
+  if (err.D.2) other.seen = "D"
+  if (err.C.2) other.seen = "C"
+
 
   #Update state
   game.state$round <- game.state$round+1
@@ -559,38 +614,68 @@ State.Transition.PD <- function(game.state, action, game.object){
       }
   }
 
+  if(game.object$game.pars$direct.rewards){
+    if(!game.state$self.play){
+      if(a[1]=="C" && a[2]=="C"){
+        reward <- game.object$game.pars$uCC
+      } else if (a[1]=="C" && a[2]=="D"){
+        reward <- game.object$game.pars$uCD
+      } else if (a[1]=="D" && a[2]=="C"){
+        reward <- game.object$game.pars$uDC
+      } else if (a[1]=="D" && a[2]=="D"){
+        reward <- game.object$game.pars$uDD
+      } else {
+        stop("something bad happened when calculating payoff")
+      }
+    } else {
+      if(a[1]=="C" && a[2]=="C"){
+        reward <- game.object$game.pars$uCC
+      } else if (a[1]=="C" && a[2]=="D"){
+        reward <- (game.object$game.pars$uCD +game.object$game.pars$uDC)/2
+      } else if (a[1]=="D" && a[2]=="C"){
+        reward <- (game.object$game.pars$uDC +game.object$game.pars$uDC)/2
+      } else if (a[1]=="D" && a[2]=="D"){
+        reward <- game.object$game.pars$uDD
+      } else {
+        stop("something bad happened when calculating payoff")
+      }
+    }
+  }
+
   #Last round
   if(game.state$round>game.state$T){
-    if(!game.state$self.play){
-      reward <- sum(sapply((1:game.state$T),FUN=function(x){
-        if(game.state$history.real[x,1]=="C" && game.state$history.real[x,2]=="C"){
-          round.reward <- game.object$game.pars$uCC
-        } else if (game.state$history.real[x,1]=="C"&&game.state$history.real[x,2]=="D"){
-          round.reward <- game.object$game.pars$uCD
-        } else if (game.state$history.real[x,1]=="D"&&game.state$history.real[x,2]=="C"){
-          round.reward <- game.object$game.pars$uDC
-        } else if (game.state$history.real[x,1]=="D"&&game.state$history.real[x,2]=="D"){
-          round.reward <- game.object$game.pars$uDD
-        } else {
-          stop("something bad happened when calculating payoff")
-        }
-        return(round.reward)
-      }))/game.state$T
-    } else {
-      reward <- sum(sapply((1:game.state$T),FUN=function(x){
-        if(game.state$history.real[x,1]=="C" && game.state$history.real[x,2]=="C"){
-          round.reward <- game.object$game.pars$uCC
-        } else if (game.state$history.real[x,1]=="C"&&game.state$history.real[x,2]=="D"){
-          round.reward <- (game.object$game.pars$uCD + game.object$game.pars$uDC)/2
-        } else if (game.state$history.real[x,1]=="D"&&game.state$history.real[x,2]=="C"){
-          round.reward <- (game.object$game.pars$uCD + game.object$game.pars$uDC)/2
-        } else if (game.state$history.real[x,1]=="D"&&game.state$history.real[x,2]=="D"){
-          round.reward <- game.object$game.pars$uDD
-        } else {
-          stop("something bad happened when calculating payoff")
-        }
-        return(round.reward)
-      }))/game.state$T
+    if(!game.object$game.pars$direct.rewards){
+      if(!game.state$self.play){
+        reward <- sum(sapply((1:game.state$T),FUN=function(x){
+          if(game.state$history.real[x,1]=="C" && game.state$history.real[x,2]=="C"){
+            round.reward <- game.object$game.pars$uCC
+          } else if (game.state$history.real[x,1]=="C"&&game.state$history.real[x,2]=="D"){
+            round.reward <- game.object$game.pars$uCD
+          } else if (game.state$history.real[x,1]=="D"&&game.state$history.real[x,2]=="C"){
+            round.reward <- game.object$game.pars$uDC
+          } else if (game.state$history.real[x,1]=="D"&&game.state$history.real[x,2]=="D"){
+            round.reward <- game.object$game.pars$uDD
+          } else {
+            stop("something bad happened when calculating payoff")
+          }
+          return(round.reward)
+        }))/game.state$T
+      } else {
+        reward <- sum(sapply((1:game.state$T),FUN=function(x){
+          if(game.state$history.real[x,1]=="C" && game.state$history.real[x,2]=="C"){
+            round.reward <- game.object$game.pars$uCC
+          } else if (game.state$history.real[x,1]=="C"&&game.state$history.real[x,2]=="D"){
+            round.reward <- (game.object$game.pars$uCD + game.object$game.pars$uDC)/2
+          } else if (game.state$history.real[x,1]=="D"&&game.state$history.real[x,2]=="C"){
+            round.reward <- (game.object$game.pars$uCD + game.object$game.pars$uDC)/2
+          } else if (game.state$history.real[x,1]=="D"&&game.state$history.real[x,2]=="D"){
+            round.reward <- game.object$game.pars$uDD
+          } else {
+            stop("something bad happened when calculating payoff")
+          }
+          return(round.reward)
+        }))/game.state$T
+      }
     }
     game.finished <- TRUE
     game.state$game.finished <- TRUE
@@ -657,6 +742,8 @@ Memory.Self.Play.PD <- function(game.object, algo.par){
           mem[[length(mem)+1]] <- list(state=t(State.2.Array.PD(game.state=state, game.object=game.object)), action=strat.action, next.state=t(State.2.Array.PD(game.state=next.state, game.object=game.object)), reward=reward, done=done, start=start)
         } else if (algo.par$mem.type=="game.state"){
           mem[[length(mem)+1]] <- list(state=state, action=strat.action, next.state=next.state, reward=reward, done=done, start=start)
+        } else if (algo.par$mem.type=="game.encoded.rounds"){
+        mem[[length(mem)+1]] <- list(state=t(State.2.Array.PD(game.state=state, game.object=game.object)), action=strat.action, next.state=t(State.2.Array.PD(game.state=next.state, game.object=game.object)), reward=reward, done=done, start=start, round=state$round)
         }
       }
 
@@ -719,6 +806,8 @@ Memory.Random.Play.PD <- function(game.object, algo.par){
         mem[[length(mem)+1]] <- list(state=t(State.2.Array.PD(game.state=state, game.object=game.object)), action=strat.action, next.state=t(State.2.Array.PD(game.state=next.state, game.object=game.object)), reward=reward, done=done, start=start)
        } else if (algo.par$mem.type=="game.state"){
          mem[[length(mem)+1]] <- list(state=state, action=strat.action, next.state=next.state, reward=reward, done=done, start=start)
+       } else if (algo.par$mem.type=="game.encoded.rounds"){
+         mem[[length(mem)+1]] <- list(state=t(State.2.Array.PD(game.state=state, game.object=game.object)), action=strat.action, next.state=t(State.2.Array.PD(game.state=next.state, game.object=game.object)), reward=reward, done=done, start=start, round=state$round)
        }
      }
 
@@ -983,5 +1072,112 @@ NN.strat.full.zero = function(obs,i,t,history.see=NULL,...) {
   return(list(a=a, history.see=history.see))
 }
 
+NN.strat.Slim.TenTen = function(obs,i,t,history.see=NULL,net.pointer=1,...) {
+  debug.store("NN.strat.Slim.TenTen", i, t)  # Store each call for each player
+  debug.restore("NN.strat.Slim.TenTen", i = 1, t = 62)  # Restore call for player i in period t
+  j = 3-i
+
+  if(is.null(history.see)){
+    history.see <- data.frame(me=rep(0,game.object$game.pars$T.max), other=rep(0,game.object$game.pars$T.max))
+  }
+  if(t>1){
+    history.see[t-1,1] <- obs$a[i]
+    history.see[t-1,2] <- obs$a[j]
+  }
+  game.state <- list()
+  game.state$history.see <- history.see
+  game.state$round <- t
+
+  me.C <- c((!is.na(game.state$history.see[,1])&game.state$history.see[,1]=="C"),rep(0,game.object$game.pars$T.max-nrow(game.state$history.see)))
+  me.D <- c((!is.na(game.state$history.see[,1])&game.state$history.see[,1]=="D"),rep(0,game.object$game.pars$T.max-nrow(game.state$history.see)))
+  other.C <- c((!is.na(game.state$history.see[,2])&game.state$history.see[,2]=="C"),rep(0,game.object$game.pars$T.max-nrow(game.state$history.see)))
+  other.D <- c((!is.na(game.state$history.see[,2])&game.state$history.see[,2]=="D"),rep(0,game.object$game.pars$T.max-nrow(game.state$history.see)))
+
+  rounds.bin <- to.binary(game.state$round,max.dig=ceiling(log2(game.object$game.pars$T.max+1)))
+
+  if(game.state$round > 1){
+    av.other.def <- sum(game.state$history.see[1:(game.state$round-1),2]=="D")/game.state$round
+  } else {
+    av.other.def <- 0
+  }
+  if(game.state$round > 1){
+    av.me.def <- sum(game.state$history.see[1:(game.state$round-1),1]=="D")/game.state$round
+  } else {
+    av.me.def <- 0
+  }
+
+  if(game.state$round > 1){
+    diff <- sum(game.state$history.see[1:(game.state$round-1),1]=="D") - sum(game.state$history.see[1:(game.state$round-1),2]=="D")
+  } else {
+    diff <- 0
+  }
+  diff.bin <- to.binary(diff,max.dig=ceiling(log2(game.object$game.pars$T.max+1)))
+
+  me.C.fin <- me.C[(game.state$round-1):max((game.state$round-10),1)]
+  if(length(me.C.fin)<=10){
+    me.C.fin <- c(me.C.fin,rep(0,10-length(me.C.fin)))
+  }
+
+  me.D.fin <- me.D[(game.state$round-1):max((game.state$round-10),1)]
+  if(length(me.D.fin)<=10){
+    me.D.fin <- c(me.D.fin,rep(0,10-length(me.D.fin)))
+  }
+
+  other.C.fin <- other.C[(game.state$round-1):max((game.state$round-10),1)]
+  if(length(other.C.fin)<=10){
+    other.C.fin <- c(other.C.fin,rep(0,10-length(other.C.fin)))
+  }
+
+  other.D.fin <- other.D[(game.state$round-1):max((game.state$round-10),1)]
+  if(length(other.D.fin)<=10){
+    other.D.fin <- c(other.D.fin,rep(0,10-length(other.D.fin)))
+  }
+
+  if(game.state$round>=2){
+    prev.val.as.seen <- sum(sapply((1:(game.state$round-1)),FUN=function(x){
+      if(game.state$history.see[x,1]=="C" && game.state$history.see[x,2]=="C"){
+        round.reward <- game.object$game.pars$uCC
+      } else if (game.state$history.see[x,1]=="C"&&game.state$history.see[x,2]=="D"){
+        round.reward <- game.object$game.pars$uCD
+      } else if (game.state$history.see[x,1]=="D"&&game.state$history.see[x,2]=="C"){
+        round.reward <- game.object$game.pars$uDC
+      } else if (game.state$history.see[x,1]=="D"&&game.state$history.see[x,2]=="D"){
+        round.reward <- game.object$game.pars$uDD
+      } else {
+        stop("something bad happened when calculating payoff")
+      }
+      return(round.reward)
+    }))/(game.state$round-1)
+  } else {
+    prev.val.as.seen <- 1
+  }
+
+  prev.val.as.seen.abs <- prev.val.as.seen*(game.state$round-1)/game.object$game.pars$T.max
+
+  arr <- c(me.C-me.D, other.C-other.D, me.C.fin-me.D.fin, other.C.fin-other.D.fin, rounds.bin, av.other.def, av.me.def, prev.val.as.seen.abs, diff.bin)
+
+  if(t>1){
+    if(is.null(net.pointer) || length(algo.var$memory.net[[net.pointer]]$successors[[action]])==0){
+      net.pointer <- NULL
+    } else {
+      net.pointer <- algo.var$memory.net[[net.pointer]]$successors[[action]][which(sapply(algo.var$memory.net[[net.pointer]]$successors[[action]], FUN=function(x){
+        identical(arr,c(algo.var$memory.net[[x]]$state))
+      }))]
+      if(length(net.pointer)==0){
+        net.pointer <- NULL
+      }
+    }
+  }
+
+  action <- Act.QPredictions(state=arr, model=model, model.par=model.par, algo.var=algo.var, game.object=game.object, eval.only=TRUE, net.pointer=net.pointer)
+
+  if(action==1){
+    a <- "C"
+  } else {
+    a <- "D"
+  }
+
+  return(nlist(a, history.see, net.pointer))
+}
 
 
