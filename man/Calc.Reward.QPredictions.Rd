@@ -5,7 +5,7 @@
 \title{Calc.Reward.QPredictions}
 \usage{
 Calc.Reward.QPredictions(net, pointer, action, mode, mode.par,
-  end.state = NULL)
+  end.state = NULL, end.reward = NULL)
 }
 \description{
 Calc.Reward.QPredictions

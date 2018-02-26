@@ -1074,7 +1074,7 @@ NN.strat.full.zero = function(obs,i,t,history.see=NULL,...) {
 
 NN.strat.Slim.TenTen = function(obs,i,t,history.see=NULL,net.pointer=1,...) {
   debug.store("NN.strat.Slim.TenTen", i, t)  # Store each call for each player
-  debug.restore("NN.strat.Slim.TenTen", i = 1, t = 62)  # Restore call for player i in period t
+  debug.restore("NN.strat.Slim.TenTen", i = 1, t = 6)  # Restore call for player i in period t
   j = 3-i
 
   if(is.null(history.see)){
