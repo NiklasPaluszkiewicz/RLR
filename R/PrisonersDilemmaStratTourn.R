@@ -924,7 +924,7 @@ Encode.Game.States.PD <- function(game.object, game.states, expand=TRUE){
 
 #' @export
 Get.Full.Encoding.Status.PD <- function(encoding.state){
-  if(encoding.state %in% c("full.zero","full.compact","maximum.full.Ten","Slim.TenTen")){
+  if(!is.null(encoding.state) && encoding.state %in% c("full.zero","full.compact","maximum.full.Ten","Slim.TenTen")){
     res <- TRUE
   } else {
     res <- FALSE
